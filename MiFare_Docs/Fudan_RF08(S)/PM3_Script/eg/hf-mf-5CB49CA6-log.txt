@@ -1,0 +1,213 @@
+[bc]
+[bc]              UID         BCC         ++----- RF08 ID -----++
+[bc]              !           !  SAK      !!                   !!
+[bc]              !           !  !  ATQA  !!     RF08 Hash     !!
+[bc]              !---------. !. !. !---. VV .---------------. VV
+[bc]   Block 0  : 5C B4 9C A6 D2 08 04 00 04 59 92 25 BF 5F 70 90
+[bc]
+[bc]   UID/BCC  : 5CB49CA6/D2 - verified
+[bc]   SAK      : 08 - NXP MIFARE CLASSIC 1k | Plus 1k | Ev1 1K
+[bc]   ATQA     : 0400
+[bc]   Fudan ID : [04:90] - Fudan FM11RF08S
+[bc]   Hash     : 59 92 25 BF 5F 70
+[bc]   Dark Key : A396EFA4E24F
+[bc]
+[bc]   Validator: `wget -q  -O -  --header="Content-Type: application/text; charset=utf-8"  --post-data "5CB49CA6D208040004599225BF5F7090"  https://rfid.fm-uivs.com/nfcTools/api/M1KeyRest  | json_pp`
+[bc]
+[bc] Check Fudan signature (requires internet)...
+[bc] The man from Fudan says: 0 - success
+[bc]
+[bc] Load Keys from file: |/home/prox/hf-mf-5CB49CA6-key.bin|
+[bc] Check keys..
+[bc]   `hf mf rdbl -c 0 --key 8693fc621e12 --blk 3`   ... PASS
+[bc]   `hf mf rdbl -c 1 --key d538def7b725 --blk 3`   ... PASS
+[bc]   `hf mf rdbl -c 0 --key 40a282c042aa --blk 7`   ... PASS
+[bc]   `hf mf rdbl -c 1 --key f4c0c55efc6a --blk 7`   ... PASS
+[bc]   `hf mf rdbl -c 0 --key 184e3a2e94ca --blk 11`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 4422b9889125 --blk 11`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key dd706a9ee951 --blk 15`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 5e5b3758858d --blk 15`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key cd3a76149582 --blk 19`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 51c3d96a0662 --blk 19`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key 091a165322eb --blk 23`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 674f46f05025 --blk 23`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key d0d277bc5c94 --blk 27`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key b48ba097d7b5 --blk 27`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key cd9edfd14d29 --blk 31`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 8c10fbbe4bcf --blk 31`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ae46323d85b5 --blk 35`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 92e3f0e07b4c --blk 35`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key 7758739e39b3 --blk 39`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 4f252e68091e --blk 39`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key f87d61e37cf0 --blk 43`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 4da6db3303e0 --blk 43`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ad44d2c7b55c --blk 47`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 37355580af8a --blk 47`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key f9aa7ada600d --blk 51`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 0ab78eae4708 --blk 51`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key 9743553d9ead --blk 55`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 96947eab2af6 --blk 55`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ae19cd0a6e4e --blk 59`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 1be13ff8cda1 --blk 59`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key a12932a626a7 --blk 63`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 6715bbd7a562 --blk 63`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key 64966fac1571 --blk 131` ... PASS
+[bc]   `hf mf rdbl -c 1 --key 000095dd9ecd --blk 131` ... PASS
+[bc] All keys verified OK
+[bc]
+[bc] Load blocks {0..63, 128..135}[64+8=72] from the card
+[bc]
+[bc] Patch keys in to data
+[bc]
+[bc] Dump Card Data
+[bc]  0:  0 | 5C B4 9C A6 D2 08 04 00 04 59 92 25 BF 5F 70 90 | \........Y.%._p.
+[bc]   :  1 | 41 30 30 2D 47 31 00 00 47 46 41 30 30 00 00 00 | A00-G1..GFA00...
+[bc]   :  2 | 50 4C 41 00 00 00 00 00 00 00 00 00 00 00 00 00 | PLA.............
+[bc]   :  3 | 86 93 fc 62 1e 12 87 87 87 69 d5 38 de f7 b7 25 
+[bc]
+[bc]  1:  4 | 50 4C 41 20 42 61 73 69 63 00 00 00 00 00 00 00 | PLA Basic.......
+[bc]   :  5 | 00 AE 42 FF FA 00 00 00 00 00 E0 3F 00 00 00 00 | ..B........?....
+[bc]   :  6 | 37 00 08 00 01 00 23 00 E6 00 BE 00 00 00 00 00 | 7.....#.........
+[bc]   :  7 | 40 a2 82 c0 42 aa 87 87 87 69 f4 c0 c5 5e fc 6a 
+[bc]
+[bc]  2:  8 | 88 13 88 13 E8 03 E8 03 9A 99 19 3F CD CC 4C 3E | ...........?..L>
+[bc]   :  9 | 44 25 18 96 E4 F3 43 8C B1 FA 02 D0 90 25 1F 28 | D%....C......%.(
+[bc]   : 10 | 00 00 00 00 E1 19 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 11 | 18 4e 3a 2e 94 ca 87 87 87 69 44 22 b9 88 91 25 
+[bc]
+[bc]  3: 12 | 32 30 32 34 5F 30 33 5F 32 32 5F 31 36 5F 32 39 | 2024_03_22_16_29
+[bc]   : 13 | 32 34 5F 30 33 5F 32 32 5F 31 36 00 00 00 00 00 | 24_03_22_16.....
+[bc]   : 14 | 00 00 00 00 52 00 00 00 00 00 00 00 00 00 00 00 | ....R...........
+[bc]   : 15 | dd 70 6a 9e e9 51 87 87 87 69 5e 5b 37 58 85 8d 
+[bc]
+[bc]  4: 16 | 02 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 17 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 18 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 19 | cd 3a 76 14 95 82 87 87 87 69 51 c3 d9 6a 06 62 
+[bc]
+[bc]  5: 20 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 21 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 22 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 23 | 09 1a 16 53 22 eb 87 87 87 69 67 4f 46 f0 50 25 
+[bc]
+[bc]  6: 24 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 25 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 26 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 27 | d0 d2 77 bc 5c 94 87 87 87 69 b4 8b a0 97 d7 b5 
+[bc]
+[bc]  7: 28 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 29 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 30 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 31 | cd 9e df d1 4d 29 87 87 87 69 8c 10 fb be 4b cf 
+[bc]
+[bc]  8: 32 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 33 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 34 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 35 | ae 46 32 3d 85 b5 87 87 87 69 92 e3 f0 e0 7b 4c 
+[bc]
+[bc]  9: 36 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 37 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 38 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 39 | 77 58 73 9e 39 b3 87 87 87 69 4f 25 2e 68 09 1e 
+[bc]
+[bc] 10: 40 | 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 41 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 42 | 48 5B 1C D2 A2 ED 2F 7D D9 72 3F 48 90 37 4F 81 | H[..../}.r?H.7O.
+[bc]   : 43 | f8 7d 61 e3 7c f0 87 87 87 69 4d a6 db 33 03 e0 
+[bc]
+[bc] 11: 44 | D6 F0 8F 4C F7 94 77 F4 EB 90 C8 92 3A F6 03 D4 | ...L..w.....:...
+[bc]   : 45 | 3C 96 7E CB 19 1E EB 5E 06 2D 71 0E 60 47 95 D8 | <.~....^.-q.`G..
+[bc]   : 46 | 81 69 8C AA 13 58 E9 9C 87 EB C5 5B CA FD 66 95 | .i...X.....[..f.
+[bc]   : 47 | ad 44 d2 c7 b5 5c 87 87 87 69 37 35 55 80 af 8a 
+[bc]
+[bc] 12: 48 | 54 7C AF A5 8F FF 93 0D 24 B7 D7 EB 8B E1 4A 61 | T|......$.....Ja
+[bc]   : 49 | 62 8B EA DF 4B 45 5D 9D B4 3A 60 BE 51 71 11 DF | b...KE]..:`.Qq..
+[bc]   : 50 | 01 81 29 72 D9 60 C5 10 D2 B5 B3 B5 31 42 0F 3E | ..)r.`......1B.>
+[bc]   : 51 | f9 aa 7a da 60 0d 87 87 87 69 0a b7 8e ae 47 08 
+[bc]
+[bc] 13: 52 | C0 F4 74 69 3D 2E ED 2C C9 81 4B CF 73 00 23 52 | ..ti=..,..K.s.#R
+[bc]   : 53 | 99 B6 3F EB 52 3B 55 14 11 BE 8C 79 46 4F 8C 9D | ..?.R;U....yFO..
+[bc]   : 54 | D0 DB 52 1E 8E 01 19 9F 13 31 A2 A7 42 F8 74 0D | ..R......1..B.t.
+[bc]   : 55 | 97 43 55 3d 9e ad 87 87 87 69 96 94 7e ab 2a f6 
+[bc]
+[bc] 14: 56 | 6A 78 3C 37 2E 4E 61 D5 BA 2E 87 A8 14 B8 D1 1F | jx<7.Na.........
+[bc]   : 57 | A0 AB AB EA 66 07 0D C0 AC 3A 29 5C 2C F5 F8 79 | ....f....:)\,..y
+[bc]   : 58 | 3D 71 6A 94 89 43 ED 83 79 85 03 6A 3A CF 69 E4 | =qj..C..y..j:.i.
+[bc]   : 59 | ae 19 cd 0a 6e 4e 87 87 87 69 1b e1 3f f8 cd a1 
+[bc]
+[bc] 15: 60 | 2C 5E 22 D6 26 C5 FD A8 13 E3 81 29 CC BB 93 23 | ,^".&......)...#
+[bc]   : 61 | 79 5B F7 3A 4F 7F 42 7E 3E D0 FC 47 88 0F 9F 94 | y[.:O.B~>..G....
+[bc]   : 62 | CB 6F 8A 8E 58 40 5E A5 A9 FE EA 69 4A 2F FB 06 | .o..X@^....iJ/..
+[bc]   : 63 | a1 29 32 a6 26 a7 87 87 87 69 67 15 bb d7 a5 62 
+[bc]
+[bc] 32:128 | A5 5A 3C C3 3C F0 00 00 00 00 00 00 00 04 08 88 | .Z<.<...........
+[bc]   :129 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :130 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :131 | 64 96 6f ac 15 71 00 F0 FF 0F 00 00 95 dd 9e cd 
+[bc]
+[bc] 33:132 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :133 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :134 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :135 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]
+[bc] Decompose as Bambu tag .. [offset:length]
+[bc]   Block 1:
+[bc]     [ 0: 8] MaterialVariantIdentifier_s = "A00-G1  "
+[bc]     [ 8: 8] UniqueMaterialIdentifier_s  = "GFA00   "
+[bc]   Block 2:
+[bc]     [ 0:16] FilamentType_s              = "PLA             "
+[bc]   Block 4:
+[bc]     [ 0:16] DetailedFilamentType_s      = "PLA Basic       "
+[bc]   Block 5:
+[bc]     [ 0: 4] Colour_rgba                 = 0x00AE42FF
+[bc]     [ 4: 2] SpoolWeight_g               = 250g
+[bc]     [ 6: 2] Block5_7to8                 = {00 00}
+[bc]     [ 8: 4] FilamentDiameter_mm         = 1.75mm
+[bc]     [12: 4] Block5_12to15               = {00 00 00}
+[bc]   Block 6:
+[bc]     [ 0: 2] DryingTemperature_c         = 55^C
+[bc]     [ 2: 2] DryingTime_h                = 8hrs
+[bc]     [ 4: 4] BedTemperatureType_q        = 1
+[bc]     [ 6: 2] BedTemperature_c            = 35^C
+[bc]     [ 8: 2] MaxTemperatureForHotend_c   = 230^C
+[bc]     [10: 2] MinTemperatureForHotend_c   = 190^C
+[bc]     [12: 4] Block6_12to15               = {00 00 00}
+[bc]   Block 8:
+[bc]     [ 0:12] XCamInfo_x                  = {88 13 88 13 E8 03 E8 03 9A 99 19 3F}
+[bc]     [12: 4] NozzleDiameter_q            = 0.200000__
+[bc]   Block 9:
+[bc]     [ 0:16] TrayUID_s                   = {44 25 18 96 E4 F3 43 8C B1 FA 02 D0 90 25 1F 28}  ; not ASCII
+[bc]   Block 10:
+[bc]     [ 0: 4] Block10_0to3                = {00 00 00 00}
+[bc]     [ 4: 2] SppolWidth_um               = 6482um
+[bc]     [ 6:10] Block10_6to15               = {00 00 00 00 00 00 00 00 00}
+[bc]   Block 12:
+[bc]     [ 0:16] ProductionDateTime_s        = "2024_03_22_16_29"
+[bc]   Block 13:
+[bc]     [ 0:16] ShortProductionDateTime_s   = "24_03_22_16     "
+[bc]   Block 14:
+[bc]     [ 0: 4] Block10_0to3                = {00 00 00 00}
+[bc]     [ 4: 2] FilamentLength_m            = 82m
+[bc]     [ 6:10] Block10_6to15               = {00 00 00 00 00 00 00 00 00}
+[bc]
+[bc]   Blocks [42, 44, 45, 46, 48, 49, 50, 52, 53, 54, 56, 57, 58, 60, 61, 62]:
+[bc]     [ 0:16] HashBlock[ 0]  =  {48 5B 1C D2 A2 ED 2F 7D D9 72 3F 48 90 37 4F 81}   // #42
+[bc]     [ 0:16] HashBlock[ 1]  =  {D6 F0 8F 4C F7 94 77 F4 EB 90 C8 92 3A F6 03 D4}   // #44
+[bc]     [ 0:16] HashBlock[ 2]  =  {3C 96 7E CB 19 1E EB 5E 06 2D 71 0E 60 47 95 D8}   // #45
+[bc]     [ 0:16] HashBlock[ 3]  =  {81 69 8C AA 13 58 E9 9C 87 EB C5 5B CA FD 66 95}   // #46
+[bc]     [ 0:16] HashBlock[ 4]  =  {54 7C AF A5 8F FF 93 0D 24 B7 D7 EB 8B E1 4A 61}   // #48
+[bc]     [ 0:16] HashBlock[ 5]  =  {62 8B EA DF 4B 45 5D 9D B4 3A 60 BE 51 71 11 DF}   // #49
+[bc]     [ 0:16] HashBlock[ 6]  =  {01 81 29 72 D9 60 C5 10 D2 B5 B3 B5 31 42 0F 3E}   // #50
+[bc]     [ 0:16] HashBlock[ 7]  =  {C0 F4 74 69 3D 2E ED 2C C9 81 4B CF 73 00 23 52}   // #52
+[bc]     [ 0:16] HashBlock[ 8]  =  {99 B6 3F EB 52 3B 55 14 11 BE 8C 79 46 4F 8C 9D}   // #53
+[bc]     [ 0:16] HashBlock[ 9]  =  {D0 DB 52 1E 8E 01 19 9F 13 31 A2 A7 42 F8 74 0D}   // #54
+[bc]     [ 0:16] HashBlock[10]  =  {6A 78 3C 37 2E 4E 61 D5 BA 2E 87 A8 14 B8 D1 1F}   // #56
+[bc]     [ 0:16] HashBlock[11]  =  {A0 AB AB EA 66 07 0D C0 AC 3A 29 5C 2C F5 F8 79}   // #57
+[bc]     [ 0:16] HashBlock[12]  =  {3D 71 6A 94 89 43 ED 83 79 85 03 6A 3A CF 69 E4}   // #58
+[bc]     [ 0:16] HashBlock[13]  =  {2C 5E 22 D6 26 C5 FD A8 13 E3 81 29 CC BB 93 23}   // #60
+[bc]     [ 0:16] HashBlock[14]  =  {79 5B F7 3A 4F 7F 42 7E 3E D0 FC 47 88 0F 9F 94}   // #61
+[bc]     [ 0:16] HashBlock[15]  =  {CB 6F 8A 8E 58 40 5E A5 A9 FE EA 69 4A 2F FB 06}   // #62
+[bc]
+[bc] Dump Card Data to file: /home/prox/hf-mf-5CB49CA6-dump18.bin
+[bc]
+[bc] Tadah!
