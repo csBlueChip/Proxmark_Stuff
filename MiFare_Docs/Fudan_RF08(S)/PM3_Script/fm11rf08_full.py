@@ -4,6 +4,8 @@
 # Revision log:
 #------------------------------------------------------------------------------
 '''
+1.3.0 - BC  - add --mad and --fast switches
+1.2.0 - BC  - git PR to iceman repo
 1.1.0 - BC  - Major refactor
 1.0.0 - BC  - Initial release
 '''
@@ -101,7 +103,7 @@ def main():
 	keyfile = f"{dpath}hf-mf-{uid:08X}-key.bin"
 	keyok   = False
 
-	if args.force == False and loadKeys() == True:
+	if (args.force == False) and (loadKeys() == True):
 		keyok = True
 	else:
 		if args.recover == False:
@@ -116,7 +118,7 @@ def main():
 				lprint(f"{prompt} ! Use --nokeys to keep going past this point")
 				exit(101)
 
-	readBlocks()
+	readBlocks(args.fast)
 	patchKeys(keyok)
 
 	diskDump()  # save it before you do anything else
@@ -124,7 +126,7 @@ def main():
 	dumpData()
 	dumpAcl()
 
-	if mad == True:  dumpMad()
+	if (mad == True) or (args.mad == True):  dumpMad()
 
 	if (args.bambu == True) or (detectBambu() == True):
 		dumpBambu()
@@ -169,6 +171,8 @@ def parseCli():
 	parser.add_argument('-f', '--force',    action='store_true', help='force recovery of keys')
 	parser.add_argument('-b', '--bambu',    action='store_true', help='force Bambu tag decode')
 	parser.add_argument('-v', '--validate', action='store_true', help='check Fudan signature (requires internet)')
+	parser.add_argument('-m', '--mad',      action='store_true', help='force M.A.D. decode')
+	parser.add_argument(      '--fast',     action='store_true', help='use ecfill for faster card transactions')
 
 	args   = parser.parse_args()
 
@@ -190,6 +194,8 @@ def getDarkKey():
 
 	#          FM11RF08S        FM11RF08        FM11RF32
 	dklist = ["A396EFA4E24F", "A31667A8CEC1", "518b3354E760"]
+
+	# We cannot use lprint yet, as the logfile requires the UID from block 0
 
 	print(prompt)
 	print(f"{prompt} Trying known backdoor keys...")
@@ -218,10 +224,13 @@ def getDarkKey():
 # Extract data from block 0
 # >> "uid"
 # >> "uids"
+# >> "dkey"
 #==============================================================================
 def decodeBlock0():
 	global  uid
 	global  uids
+	global  blk0
+	global  dkey
 
 	# We do this early so we can name the logfile!
 	uids = blk0[0:11]                            # UID string  : "11 22 33 44"
@@ -272,6 +281,8 @@ def decodeBlock0():
 	# --- show results ---
 
 	lprint(prompt)
+
+	lprint(f"{prompt}   Dark Key : {dkey}")
 
 	lprint(f"{prompt}   UID/BCC  : {uid:08X}/{bcc:02X} - ", end='')
 	if bcc == chk:  lprint("verified")
@@ -450,15 +461,17 @@ def verifyKeys():
 # Read all block data - INCLUDING Dark blocks
 # >> blkn
 # >> "data[]"
+# >> "dkey"
 '''
 [=]   # | sector 00 / 0x00                                | ascii
 [=] ----+-------------------------------------------------+-----------------
 [=]   0 | 5C B4 9C A6 D2 08 04 00 04 59 92 25 BF 5F 70 90 | \........Y.%._p.
 '''
 #==============================================================================
-def readBlocks():
+def readBlocks(fast=False):
 	global  data
 	global  blkn
+	global  dkey
 
 	data = []
 	blkn = list(range(0, 63+1)) + list(range(128, 135+1))
@@ -472,10 +485,34 @@ def readBlocks():
 	lprint(prompt)
 	lprint(prompt + " Load blocks {0..63, 128..135}[64+8=72] from the card")
 
+	# --- Try fast dump first ---
+	blkn_list = blkn
+	if fast == True:
+		cmd = f"hf mf ecfill -c 4 --key {dkey}"
+		lprint(f"{prompt} `{cmd}`", end='')
+		p.console(cmd)
+		ecok = False
+		for line in p.grabbed_output.split('\n'):
+			if "ok" in line:
+				if ecok == False:
+					lprint(" .. success")
+				ecok = True
+				cmd = "hf mf eview"
+				lprint(f"{prompt} `{cmd}`")
+				p.console(cmd)
+				for line in p.grabbed_output.split('\n'):
+					if " | " in line and "sec | blk | data" not in line:
+						lsub = line[11:83]
+						data.append(lsub)
+						blkn_list = list(range(128, 135+1))
+		if ecok == False:
+			lprint(f" .. fail")
+
+	# --- Dump the rest with rdbl ---
 	bad = 0
-	for n in blkn:
+	for n in blkn_list:
 		cmd = f"{rdbl} {n}"
-		print(f"\r{prompt} `{cmd}`", end='', flush=True)
+		lprint(f"\r{prompt} `{cmd}`", end='', flush=True)
 
 		for retry in range(5):
 			p.console(f"{cmd}")
@@ -492,7 +529,7 @@ def readBlocks():
 			data.append(f"{n:3d} | -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- | ----------------")
 			bad += 1
 
-	print(" .. OK")
+	lprint(" .. OK")
 
 #+=============================================================================
 # Patch keys in to data
@@ -903,7 +940,7 @@ def diskDump():
 			if "--" in d[6:53]:  bad = True
 			b = bytes.fromhex(d[6:53].replace(" ", "").replace("--","FF"))
 			f.write(b)
-	if bad:  lprint(f"{prompt} Bad data exists, and has been saved as 0xFF")
+	if bad:  lprint(f"{prompt} ! Bad/unknown data exists, and has been saved as 0xFF")
 
 #+=============================================================================
 # Dump MAD
@@ -918,7 +955,7 @@ def dumpMad():
 	lprint(f"{prompt} ====================================")
 	lprint(f"{prompt}")
 
-	cmd=f"hf mf mad --verbose --file {dump18}"
+	cmd=f"hf mf mad --force --verbose --file {dump18}"
 	print(f"{prompt} `{cmd}`")
 
 	lprint(f"{prompt}")
