@@ -204,18 +204,29 @@ Or, if you prefer:
 		https://rfid.fm-uivs.com/nfcTools/api/M1KeyRest  \
 	| json_pp
 
-In reply you will see either:
-	{
-		"code" : 0,
-		"data" : null,
-		"message" : "success"
-	}
-or
-	{
-		"code" : -9,
-		"data" : null,
-		"message" : "input error"
-	}
+Here is the selection of replies I have seen:
+	{ "code" :  0,   "data" : null,   "message" : "success"           }
+	{ "code" : -9,   "data" : null,   "message" : "input error"       }
+	{ "code" : -10,  "data" : null,   "message" : "inner error"       }
+	{ "code" : -11,  "data" : null,   "message" : "Too Many Requests" }
+
+You may also care to note that if you change this "5" to a "0" or "F"
+                                      v------'
+      "5CB49CA6 D2 08 0400 04 599225BF5F70 90" => valid, success
+  ->  "5CB49CA6 D2 08 0400 04 599225BF0F70 90" => invalid, success
+  ->  "5CB49CA6 D2 08 0400 04 599225BFFF70 90" => invalid, success
+...you will still get "success"
+
+I proffer this as a "proof by contradiction" that the "Fudan Signature" 
+is NOT "a partial HMAC"
+
+The binary representation of this change may be relevant [qv. -11]:
+	0 == 0000
+	5 == 0101
+	F == 1111
+
+Original research showed the "data" in the reply as being Key-A for the
+Dark Sector, ie. the four blocks {128..131} ...but I have only ever seen 'null'
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~~ Validation script
