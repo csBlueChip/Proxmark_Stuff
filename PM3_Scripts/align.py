@@ -59,8 +59,7 @@ def main():
                 gotkey = True
                 break
 
-    print(f"    Use ^C to abort, this will kill the pm3 interface")
-    print(f"    ...but when you restart it, your tag wil be nicely aligned :)\n")
+    print(f"    Use ^C to abort. This will kill the pm3 interface, just restart it\n")
 
     print(f"    Key: _ No card ; - Auth error ; ~ Read error ; * Read OK\n")
 
