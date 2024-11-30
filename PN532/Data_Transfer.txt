@@ -1,0 +1,159 @@
+FYI: https://www.luisllamas.es/en/arduino-nfc-pn532/?form=MG0AV3
+
+First we need to use NFC comms to talk to the Tag
+This will be performed by the PN532 chip
+https://www.nxp.com/docs/en/nxp/data-sheets/PN532_C1.pdf
+	
+[Fig.1]
+	The PN532 is a SoC, and includes an 8051 CPU
+
+[Fig.3]
+	The 8051 runs a program (stored in ROM)
+
+[Fig.1]
+	This program knows how to control a CIU to talk NFC via SIGOUT
+	SIGOUT (signal output) is connected to the [PCB] aerial
+
+[Fig.10]
+	Commands/Data can be Sent-to/Received-from the 8051 via
+		any one of THREE (industry standard) Host Interfaces: {I2C, SPI, HSU}
+
+[Table 72]
+	You choose which one by setting the I0 and I1 pins on the chip
+	This is NORMALLY done with DIP switches, but COULD be done electronically
+		if (i1 == False)
+			fifo(enable)
+			if (i0 == False)  ioMode(HSU)
+			if (i0 == True )  ioMode(SPI)
+		if (i1 == True)
+			fifo(disable)
+			if (i0 == False)  ioMode(I2C)
+			if (i0 == True )  error("reserved")
+
+[Fig.10]
+*	i2c is only half-duplex
+		ie. 1 Transmit+Receive/Data wire
+		so it can (obivously) only Send XOR Receive data at any given moment
+
+	i2c also requires 1 Clock wire
+	i2c does NOT have a FIFO, so Clock Stretching MAY (will) occur
+	Clock Stretching is a problem for the ESP32 chips
+	
+	i2c is a Bus Architecture (one host, many devices)
+	Each device is given an 7-bit Address
+	On the PN532, this is ALWAYS 0x48
+	...so you can only ever have ONE PN532 on any given i2c bus
+	
+*	SPI & HSU (High Speed UART) are both full-duplex,
+		ie. 1 Transmit Wire + 1 Receive wire
+	
+*	HSU is P2P at an agreed baud rate ...so no Clock wire is required
+	As with all UARTS, you DO need to agree Start, Stop, and Parity Bit settings
+	
+	HSU has fully Asynchronous Transmit/Receive lines
+	
+*	SPI is a Bus Architecture (one host, many devices)
+	SPI DOES require a Clock wire
+	SPI devices do NOT have addresses
+	Each SPI device has its own Chip Enable wire
+	You MAY *SEND* (the same) data to MANY devices at the same time
+	
+	SPI is Synchronous Full Duplex
+	ie. EVERY datum is 1 bit in BOTH directions
+	
+*	              I2C     SPI     HSU
+                 ------  ------  ------
+	Duplex 	      half    full    full  
+	Duplex Synch   -      synch  asynch
+	Wires	       2      3+N*     2          +V & Gnd are assumed
+	Devices/bus    1       N       1          i2c supports 128 devices**
+	Multicast      N       Y       -
+	Max Speed    400 KHz  5 MHz  1.288 Mb/s   Hz == bits/second***
+		
+		* N is the number of devices on the bus
+		** each device must have a unique address (the PN532 is ALWAYS 0x48)
+		*** In this scenario, Hz == b/s ...this is not always true
+
+*	The CIU data transfer speed (to the Tag) is <= 424 Kb/s		
+	...so again, i2c is a poor choice
+	
+*	The maximum speed of a UART on a Pico is 961.6 KBaud
+	...half that is 480.8 KBaud 
+	   but there is (typically (8N1)) a 20% protocol overhead
+	   480.8 * 80% = 384.64 Kb/s ...which is < 424 Kb/s
+
+	The maximum speed of a UART on an ESP32 is 5 MBaud !
+
+*	I guess i2c is included for maximum cross-platform compatibility
+	It is so easy to implement, the source code is on the wikipedia page!
+
+Whatever protocol you choose, the Commands/Data you Send/Receive are identical.
+That is, the transfer protocol is independent of the data being transmitted.
+
+Here is some pseudo code:
+
+	#define  READ_UID  (0x43)
+	
+	void  read_mifare_uid () { 
+		unsigned char command[] = {READ_UID};
+		unsigned char reply[16];
+
+		init_pn532();
+		
+		send(command, sizeof(command)); 
+		read(reply,   sizeof(reply));
+		
+		printf("UID: ");
+		for (int i = 0;  i < 4;  i++)  printf("%02X", reply[i]) ;
+	}
+
+The init(), send() and read() functions will use the protocol you chose earlier
+So you can now extrapolate these functions:
+
+	#if PRTOTOCOL == I2C
+	#	define  init_pn532(...)  init_pn532_i2c(__ARGV__)
+	#	define  send(...)        send_i2c(__ARGV__)
+	#	define  read(...)        read_i2c(__ARGV__)
+
+	#if PRTOTOCOL == SPI
+	#	define  init_pn532(...)  init_pn532_spi(__ARGV__)
+	#	define  send(...)        send_spi(__ARGV__)
+	#	define  read(...)        read_spi(__ARGV__)
+
+	#if PRTOTOCOL == HSU
+	#	define  init_pn532(...)  init_pn532_hsu(__ARGV__)
+	#	define  send(...)        send_hsu(__ARGV__)
+	#	define  read(...)        read_hsu(__ARGV__)
+
+	#else
+	#	error  Choose a protocol
+	#endif
+
+You can now send commands to the PN532, and receive replies.
+	Commands may target 
+		the PN532 itself, eg. {GET_FIRMWARE_VERSION, SET_GPIO_PINS, ...}
+	or	a Tag,            eg. {READ_UID, WRITE_BLOCK, ...}
+
+	Technically, ALL command target the PN532, 
+	but some of the commands are "use the CIU to do <this> to the Tag"
+		
+This code is VERY clean, and has all the commands in a nice header file :)
+	https://github.com/thanhbinh89/pn532-esp-idf/tree/master/components/pn532		
+
+	Ignore the "ESP" in the URL, this is literally Bit-Bashing the SPI protocol
+	The only functions in this code which are ESP specific are
+		gpio_pad_select_gpio()  ...Mux a Chip Pin to the GPIO silicon
+		gpio_set_direction()    ...set GPIO mode {input, output}
+		gpio_set_level()        ...set a GPIO pint to {high, low}
+		gpio_get_level()        ...read a GPIO pin
+	Its a simple task to find the equivalents for your microController.
+	
+In complex code, Bit-Bashing can become unreliable, so feel free to use the
+bespoke spi_???(), i2c_???(), uart_???() calls provided by your microController.
+
+eg. Tell the microController Mux unit to attach Chip Pins to the SPI silicon
+	Then, instead of using the Bit-Bashing functions, use the SPI functions
+	supplied by your microController. eg. Section 4.1.24.4 of
+		https://datasheets.raspberrypi.com/pico/raspberry-pi-pico-c-sdk.pdf
+		https://github.com/raspberrypi/pico-examples/blob/master/spi/spi_master_slave/spi_master/spi_master.c
+	
